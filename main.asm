@@ -118,6 +118,9 @@ insheet = VARS+$ab
 pstate  = VARS+$b0      ; 16: lever progress per floor
 xpgain  = VARS+$c0      ; 16-bit
 ggain   = VARS+$c2      ; 16-bit
+savepx  = VARS+$c4      ; overworld position, kept in the save
+savepy  = VARS+$c5
+savemagic = VARS+$c6    ; 2 bytes: 'K','4'
 
 GETIN   = $ffe4
 SCREEN  = $0400
@@ -832,7 +835,7 @@ ow_status
         +print PC,16,s_ow_k1,TEXTCOL
         +print PC,17,s_ow_k2,TEXTCOL
         +print PC,18,s_ow_k3,TEXTCOL
-        +print PC,19,s_blank,TEXTCOL
+        +print PC,19,s_ow_k4,TEXTCOL
         rts
 .tk     +print PC,16,s_ow_k1,TEXTCOL
         +print PC,17,s_tw_k2,TEXTCOL
@@ -1026,6 +1029,12 @@ ow_key
 +       cmp #$48            ; H
         bne +
         jmp camp_heal
++       cmp #$56            ; V  save game
+        bne +
+        jmp save_game
++       cmp #$4c            ; L  load game
+        bne +
+        jmp load_game
 +       rts
 .up     dec ty
         lda #<m_north
@@ -2039,6 +2048,7 @@ low_end
 *= HICODE
 !source "combat.asm"
 !source "town.asm"
+!source "saveload.asm"
 !source "build/gen.asm"
 
 code_end

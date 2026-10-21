@@ -18,6 +18,7 @@ s_2sp    !scr "  " : !byte $ff
 s_ow_k1  !scr "wasd/crsr move  " : !byte $ff
 s_ow_k2  !scr "e  enter place  " : !byte $ff
 s_ow_k3  !scr "c sheet  h heal " : !byte $ff
+s_ow_k4  !scr "v save  l load  " : !byte $ff
 s_tw_k2  !scr "walk into folk  " : !byte $ff
 s_tw_k4  !scr "gate = leave    " : !byte $ff
 s_dg_k1  !scr "w forward       " : !byte $ff
@@ -92,7 +93,7 @@ s_sig1     !scr "sigils:   of 5" : !byte $ff
 
 m_welcome1 !scr "welcome, adventurers of kesh!" : !byte $ff
 m_welcome2 !scr "a crypt lies near. thornbury, east." : !byte $ff
-m_welcome3 !scr "press c for your character sheet." : !byte $ff
+m_welcome3 !scr "c sheet  v save  l load saved game" : !byte $ff
 m_north    !scr "north" : !byte $ff
 m_south    !scr "south" : !byte $ff
 m_east     !scr "east" : !byte $ff

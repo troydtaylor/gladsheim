@@ -28,7 +28,14 @@ class C64:
         self.mem[0xFFE4:0xFFE4 + len(stub)] = bytes(stub)
         self.mem[0xD011] = 0x9B          # raster bit 8 set -> wait_vb falls through
         self.mem[0xD016] = 0xC8
-        self.cpu = MPU(memory=self.mem, pc=0x080D)
+        entry = 0x080D
+        if load == 0x0801:                    # follow the BASIC stub's SYS
+            line = bytes(self.mem[0x0801:0x0830])
+            i = line.find(b"\x9e")
+            if i >= 0:
+                digits = bytes(ch for ch in line[i + 1:i + 8] if 0x30 <= ch <= 0x39)
+                entry = int(digits.decode()) if digits else entry
+        self.cpu = MPU(memory=self.mem, pc=entry)
         self.cpu.sp = 0xFF
         self.cycles = 0
         self.sym = {}
@@ -39,14 +46,84 @@ class C64:
                 if len(parts) == 2 and "$" in parts[1]:
                     self.sym[parts[0].strip()] = int(parts[1].split(";")[0].strip()[1:], 16)
         self.on_pause = None
+        self.disk = {}            # fake 1541: name -> bytes (2-byte load address + data)
+        self.write_protect = False
+        self._io = {"name": b"", "lfn": 0, "dev": 0, "sa": 0, "chan": b"", "chkin": False}
+        self.kernal = {0xFFBA: self._setlfs, 0xFFBD: self._setnam, 0xFFC0: self._open,
+                       0xFFC3: self._close, 0xFFC6: self._chkin, 0xFFCC: self._clrchn,
+                       0xFFCF: self._chrin, 0xFFD5: self._load, 0xFFD8: self._save,
+                       0xFFB7: self._readst}
+        for a in self.kernal:
+            self.mem[a] = 0x60     # RTS; the Python handler runs first
         self.pause_addr = self.sym.get("pause")
         if self.pause_addr:
             self.mem[self.pause_addr] = 0x60      # RTS: skip the delay loop, call on_pause instead
 
     def step(self):
-        if self.cpu.pc == self.pause_addr and self.on_pause:
+        pc = self.cpu.pc
+        if pc == self.pause_addr and self.on_pause:
             self.on_pause(self)
+        h = self.kernal.get(pc)
+        if h:
+            h()
         self.cpu.step()
+
+    # ---------------------------------------------------------------- fake KERNAL disk I/O
+    def _carry(self, on):
+        self.cpu.p = (self.cpu.p | 1) if on else (self.cpu.p & ~1)
+    def _setlfs(self):
+        self._io.update(lfn=self.cpu.a, dev=self.cpu.x, sa=self.cpu.y)
+    def _setnam(self):
+        n, a = self.cpu.a, self.cpu.x | self.cpu.y << 8
+        self._io["name"] = bytes(self.mem[a:a + n])
+    def _status(self, code, text):
+        self._io["chan"] = f"{code:02d}, {text},00,00\r".encode()
+    def _open(self):
+        io = self._io
+        if io["lfn"] == 15 and io["name"].startswith(b"S0:"):
+            fn = io["name"][3:]
+            hit = fn in self.disk
+            self.disk.pop(fn, None)
+            self._status(1, "FILES SCRATCHED")
+        self._carry(False)
+    def _close(self):
+        self._carry(False)
+    def _chkin(self):
+        self._io["chkin"] = True
+        self._carry(False)
+    def _clrchn(self):
+        self._io["chkin"] = False
+    def _chrin(self):
+        ch = self._io["chan"] or b"00, OK,00,00\r"
+        self.cpu.a = ch[0]
+        self._io["chan"] = ch[1:] if len(ch) > 1 else b""
+        if not self._io["chan"]:
+            self._status(0, "OK")
+    def _readst(self):
+        self.cpu.a = 0
+    def _save(self):
+        z = self.cpu.a
+        start = self.mem[z] | self.mem[z + 1] << 8
+        end = self.cpu.x | self.cpu.y << 8
+        if self.write_protect:
+            self._status(26, "WRITE PROTECT ON")
+        else:
+            self.disk[self._io["name"]] = bytes([start & 255, start >> 8]) + bytes(self.mem[start:end])
+            self._status(0, "OK")
+        self._carry(False)
+    def _load(self):
+        f = self.disk.get(self._io["name"])
+        if f is None:
+            self._status(62, "FILE NOT FOUND")
+            self.cpu.a = 4
+            self._carry(True)
+            return
+        addr = f[0] | f[1] << 8
+        self.mem[addr:addr + len(f) - 2] = f[2:]
+        end = addr + len(f) - 2
+        self.cpu.x, self.cpu.y = end & 255, end >> 8
+        self._status(0, "OK")
+        self._carry(False)
 
     def var(self, name, off=0):
         return self.mem[self.sym[name] + off]
