@@ -25,10 +25,8 @@ combat
         bne -
 +       jsr show_monster
         jsr draw_foes
-        +print PC,16,s_cb_k1,TEXTCOL
-        +print PC,17,s_cb_k2,TEXTCOL
-        +print PC,18,s_cb_k3,TEXTCOL
-        +print PC,19,s_cb_k4,TEXTCOL
+        lda #3
+        jsr panel_keys
         jsr mb_start
         lda nmon
         cmp #1
@@ -609,53 +607,4 @@ defeat
         +msg m_halfgold
         jmp main
 
-; --------------------------------------------------------------------- foes panel
-!zone draw_foes
-draw_foes
-        +print PC,10,s_foes,HEADCOL
-        +print PC,11,s_blank,TEXTCOL
-        ldx mtype
-        lda mplur_lo,x
-        sta str
-        lda mplur_hi,x
-        sta str+1
-        lda nmon
-        cmp #1
-        bne +
-        lda mname_lo,x
-        sta str
-        lda mname_hi,x
-        sta str+1
-+       lda #DEADCOL
-        sta textcol
-        ldx #PC
-        ldy #11
-        jsr print_at
-        +print PC,12,s_blank,TEXTCOL
-        +print PC,13,s_blank,TEXTCOL
-        lda #3
-        sta ndig
-        lda #0
-        sta fcur
-.l      ldx fcur
-        cpx nmon
-        bcs .d
-        lda col4,x
-        tax
-        ldy fcur
-        lda mhp,y
-        beq .dead
-        ldy #12
-        jsr pu8
-        jmp .n
-.dead   lda #<s_dead3
-        sta str
-        lda #>s_dead3
-        sta str+1
-        ldy #12
-        jsr print_at
-.n      inc fcur
-        jmp .l
-.d      rts
 
-col4    !byte PC, PC+4, PC+8, PC+12

@@ -219,9 +219,9 @@ class C64:
         im.resize((im.width * scale, im.height * scale), Image.NEAREST).save(path)
 
     def screen_text(self):
-        """the text on screen: the game's 80-column text layer when it has one, else the char screen"""
+        """the text on screen: the game's 40-column text layer when it has one, else the char screen"""
         vtx = self.sym.get("VTX")
-        cols, base = (80, vtx) if vtx else (40, 0x0400)
+        cols, base = (40, vtx) if vtx else (40, 0x0400)
         out = []
         for row in range(25):
             line = ""

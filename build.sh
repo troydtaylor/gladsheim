@@ -8,7 +8,8 @@ cd "$(dirname "$0")"
 python3 gen.py
 acme main.asm
 if command -v exomizer >/dev/null 2>&1; then
-    exomizer sfx sys -q -o build/packed.prg build/proto.prg
+    # ROMs off while unpacking: part of the program lives in the RAM under BASIC
+    exomizer sfx sys -q -n -Di_ram_during=0x34 -Di_irq_during=0 -o build/packed.prg build/proto.prg
     GAME=build/packed.prg
 else
     echo "exomizer not found: the disk gets the unpacked game (slower to load)"

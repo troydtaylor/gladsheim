@@ -42,6 +42,9 @@ class Bot:
         self.on_frame = on_frame or (lambda caption, hold: None)
         self.c.on_pause = lambda c: self.on_frame(None, 5)
         self.c.run_until_idle()
+        if "PRESS ANY KEY" in self.c.screen_text():      # the story so far
+            self.on_frame(None, 40)
+            self.c.key(' ')
         if seed is not None:
             self.c.mem[self.sym("seed")] = seed & 255
             self.c.mem[self.sym("seed") + 1] = (seed >> 8) | 1
@@ -263,7 +266,8 @@ class Bot:
         tp = self.tile_pass()
         for (dx, dy), k in DIRKEY.items():
             stand = (target[0] - dx, target[1] - dy)
-            if 0 <= stand[0] < 32 and 0 <= stand[1] < 25 and tp[self.ow_tile(*stand)]:
+            w, h = (32, 25) if self.mode == 2 else (64, 64)
+            if 0 <= stand[0] < w and 0 <= stand[1] < h and tp[self.ow_tile(*stand)]:
                 try:
                     self.walk_to(stand)
                 except AssertionError:
@@ -329,9 +333,29 @@ class Bot:
     def reserve_for(self, t):
         return 40 if t == 0 else 150                   # keep money for rooms and raising the dead
 
-    def resupply(self, t, shopping=True):
-        """inn, temple if anyone died, then gear: the best affordable upgrades"""
+    # ---------------------------------------------------------------- people and quests
+    def quests(self):
+        return self.table("qs", 8)
+
+    def talk_all(self, t):
+        """everyone in town t, to take quests and collect rewards"""
+        first, n = self.v("town_npc_first", t), self.v("town_npc_count", t)
+        for i in range(first, first + n):
+            before = self.quests()
+            self.bump((self.v("npc_x", i), self.v("npc_y", i)), "Talking to the townsfolk", 10)
+            if self.quests() != before:
+                self.log(f"   quest: {' / '.join(self.lines(4)[-4:])}")
+                self.on_frame("A quest!", 30)
+
+    def visit_hermit(self):
+        self.bump((self.sym("HUT_X"), self.sym("HUT_Y")), "The hermit's hut", 30)
+        self.log(f"   hermit: {' / '.join(self.lines(4)[-4:])}")
+
+    def resupply(self, t, shopping=True, talk=True):
+        """people, inn, temple if anyone died, then gear: the best affordable upgrades"""
         self.enter_town(t)
+        if talk:
+            self.talk_all(t)
         dead = [i for i, h in enumerate(self.hp()) if h == 0]
         if dead:
             self.open_shop(2, "the temple")
@@ -398,6 +422,9 @@ class Bot:
         f = C.FLOORS[lv]
         for p in self.find(5):                       # inscriptions
             self.goto(p)
+        for p in self.find(14):                      # quest item
+            self.goto(p)
+            self.log(f"   found: {' / '.join(self.lines(2))}")
         for p in self.find(10):                      # key
             self.goto(p)
             assert self.v("keys") & (1 << self.v("dungeon"))
@@ -488,7 +515,7 @@ class Bot:
             except Fallen:
                 pass
             self.may_retreat = True
-            self.resupply(0 if d < 3 else 1, shopping=False)
+            self.resupply(0 if d < 3 else 1, shopping=False, talk=False)
 
     def report(self, label):
         s = dict(label=label, levels=self.lvls(), gold=self.gold(), battles=self.battles,
@@ -527,7 +554,13 @@ def run(b):
         b.report(f"after {C.DUNGEONS[d][0]} ({sig} runestones)")
         if d < 5:
             assert sig == d + 1, f"expected {d + 1} runestones, have {sig}"
+        if d == 2:                                   # the horn and the star iron
+            b.say("To the hermit's hut, with his horn", 14)
+            b.visit_hermit()
+            b.say("Back to Thornbury with the star iron", 14)
+            b.resupply(0, shopping=False)
     assert b.v("won") == 1, "Nidhogg should be dead"
+    assert b.quests()[:7] == [3, 3, 3, 3, 3, 3, 2], f"quests left undone: {b.quests()}"
     b.say("Nidhogg is slain. The gates of Valhalla open!", 30)
     return b
 

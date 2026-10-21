@@ -3,35 +3,12 @@
 ;  Panel strings are 16 wide so they overwrite what was there.
 ;  Game content text (places, floors, towns, monsters) is in build/gen.asm.
 ; =====================================================================
-s_title  !scr "   gladsheim" : !byte $ff
-s_party  !scr "party   hp sp lv" : !byte $ff
+s_title  !scr " gladsheim" : !byte $ff
 s_gold   !scr "gold" : !byte $ff
-s_loc    !scr "location        " : !byte $ff
-s_foes   !scr "foes            " : !byte $ff
-s_keys   !scr "keys" : !byte $ff
-s_wilds  !scr "gladsheim       " : !byte $ff
-s_xy     !scr "x:   y:         " : !byte $ff
-s_facing !scr "facing          " : !byte $ff
-s_blank  !scr "                " : !byte $ff
+s_wilds  !scr "gladsheim" : !byte $ff
+s_xy     !scr "x:   y:     " : !byte $ff
+s_facing !scr "facing      " : !byte $ff
 s_dead3  !scr "---" : !byte $ff
-s_2sp    !scr "  " : !byte $ff
-s_ow_k1  !scr "wasd/crsr move  " : !byte $ff
-s_ow_k2  !scr "e  enter place  " : !byte $ff
-s_ow_k3  !scr "c sheet  h heal " : !byte $ff
-s_ow_k4  !scr "v save  l load  " : !byte $ff
-s_tw_k2  !scr "walk into folk  " : !byte $ff
-s_tw_k4  !scr "gate = leave    " : !byte $ff
-s_dg_k1  !scr "w forward       " : !byte $ff
-s_dg_k2  !scr "a/d turn  s back" : !byte $ff
-s_dg_k3  !scr "e use/climb     " : !byte $ff
-s_dg_k4  !scr "c sheet  h heal " : !byte $ff
-s_cb_k1  !scr "a  attack       " : !byte $ff
-s_cb_k2  !scr "p  parry        " : !byte $ff
-s_cb_k3  !scr "h/b/s  spells   " : !byte $ff
-s_cb_k4  !scr "r  run          " : !byte $ff
-s_sh_k1  !scr "a-d  buy        " : !byte $ff
-s_sh_k2  !scr "1-4  who        " : !byte $ff
-s_sh_k3  !scr "x  leave shop   " : !byte $ff
 s_n      !scr "north" : !byte $ff
 s_e      !scr "east " : !byte $ff
 s_s      !scr "south" : !byte $ff

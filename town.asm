@@ -131,11 +131,7 @@ talk_npc
         bne .l
         +msg m_blocked
         rts
-.found  stx member
-        +ptrmsg npc1_lo, npc1_hi
-        ldx member
-        +ptrmsg npc2_lo, npc2_hi
-        rts
+.found  jmp talk_script
 
 ; ---------------------------------------------------------------------
 ;  Shop screen (drawn inside the viewport)
@@ -146,10 +142,8 @@ shop_open
         lda #1
         sta inshop
         jsr shop_draw
-        +print PC,16,s_sh_k1,TEXTCOL
-        +print PC,17,s_sh_k2,TEXTCOL
-        +print PC,18,s_sh_k3,TEXTCOL
-        +print PC,19,s_blank,TEXTCOL
+        lda #4
+        jsr panel_keys
         ldx shop
         +ptrmsg greet_lo, greet_hi
 .loop   jsr getkey

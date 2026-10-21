@@ -41,7 +41,7 @@ XP_TABLE = [0, 0, 30, 80, 160, 280, 450, 680, 980, 1360, 1830, 2400, 3080,
 P_NONE, P_RIDDLE, P_LEVER, P_KEY, P_PLATES = 0, 1, 2, 3, 4
 
 CRYPT = [
- "################", "#S.....#.......#", "#.####.#.#####.#", "#.#....#.#..I#.#",
+ "################", "#S.....#.......#", "#.####.#.#####.#", "#.#Q...#.#..I#.#",
  "#.#.####.#.#.#.#", "#.#......#.#...#", "#.######.#.###.#", "#......#.#...#.#",
  "######.#g###.#.#", "#......#...#.#.#", "#.########.#.#.#", "#.#........#...#",
  "#.#.########.###", "#.#..........#T#", "#...########.Dk#", "################"]
@@ -175,7 +175,7 @@ def build_floor(seed, loops, protect=None, boss=None, down=False, secret_to_down
                     continue
                 d2, _ = bfs(g, S, blocked={c})
                 if v not in d2 and all(pt in d2 for pt in
-                                       [(x, y) for y in range(16) for x in range(16) if g[y][x] in 'IK123P']):
+                                       [(x, y) for y in range(16) for x in range(16) if g[y][x] in 'IK123PQ']):
                     sec = c
                     break
             if sec is None:
@@ -194,19 +194,21 @@ def build_floor(seed, loops, protect=None, boss=None, down=False, secret_to_down
 # each floor: name (<=16), dungeon, map, guards {letter: (monster, count)}, random encounter types (4),
 #             puzzle, riddle answer, door text (2 lines), inscription (2 lines), chest (gold, line1, line2, runestone bit, victory)
 FLOORS = [
- dict(name="crypt of varn", dungeon=0, map=CRYPT,
+ dict(name="crypt of varn", short="varn's crypt", dungeon=0, map=CRYPT,
       guards={'g': ("skeleton", 3), 'k': ("bone king", 1)},
       rnd=("skeleton", "slime", "skeleton", "slime"), puzzle=P_RIDDLE, answer="varn",
       door=("a magic mouth on the door speaks:", "'name the dead king, and pass.'"),
       insc=("words carved on a tomb:", "'here lies varn, the last bone king.'"),
       chest=(100, "the crown of varn! +100 gold.", "a runestone glows! 1 of 5.", 0, 0)),
- dict(name="sunken halls", dungeon=1, map=SUNKEN,
+ dict(name="sunken halls", short="sunken halls", dungeon=1, map=SUNKEN,
       guards={'o': ("orc", 2), 'c': ("orc chief", 1)},
       rnd=("orc", "slime", "goblin", "orc"), puzzle=P_LEVER,
       door=("a great iron door. it won't budge.", "three levers must hold the key..."),
       insc=("an inscription on the wall reads:", "'east, then west, the north last.'"),
       chest=(200, "the sunken hoard! +200 gold.", "the second runestone is yours!", 1, 0)),
 ]
+
+SHORT = {'crypt of varn': "varn's crypt", 'sunken halls': 'sunken halls', 'webwood caves 1': 'webwood 1', 'webwood caves 2': 'webwood 2', 'frozen deep 1': 'frozen 1', 'frozen deep 2': 'frozen 2', 'obsidian keep 1': 'obsidian 1', 'obsidian keep 2': 'obsidian 2', 'valhalla gate 1': 'valhalla 1', 'valhalla gate 2': 'valhalla 2', 'valhalla gate 3': 'valhalla 3'}
 
 def floor(name, dungeon, seed, loops, rnd, guards, puzzle=P_NONE, answer="", door=("", ""),
           insc=("", ""), chest=None, **kw):
@@ -215,22 +217,22 @@ def floor(name, dungeon, seed, loops, rnd, guards, puzzle=P_NONE, answer="", doo
         letters += [k]
     gmap = build_floor(seed, loops, guards=[k for k in letters if k not in kw.get('boss_letters', '')],
                        **{a: b for a, b in kw.items() if a != 'boss_letters'})
-    FLOORS.append(dict(name=name, dungeon=dungeon, map=gmap, guards=guards, rnd=rnd, puzzle=puzzle,
+    FLOORS.append(dict(name=name, short=SHORT[name], dungeon=dungeon, map=gmap, guards=guards, rnd=rnd, puzzle=puzzle,
                        answer=answer, door=door, insc=insc, chest=chest or (0, "", "", 255, 0)))
 
 # Webwood Caves (danger 3): find the warden's key above, open the queen's lair below
 floor("webwood caves 1", 2, 21, 7, ("giant spider", "goblin", "giant spider", "slime"),
-      {'w': ("giant spider", 2), 'b': ("goblin", 4)}, down=True, items=['K', 'I'],
+      {'w': ("giant spider", 2), 'b': ("goblin", 4)}, down=True, items=['Q', 'K', 'I'],
       insc=("silk-wrapped bones clutch a note:", "'the queen's key... i hid it here...'"))
 floor("webwood caves 2", 2, 22, 8, ("giant spider", "giant spider", "goblin", "orc"),
       {'w': ("giant spider", 3), 'q': ("spider queen", 1)}, protect='T', boss='q', boss_letters='q',
-      items=['I'], puzzle=P_KEY,
+      items=['Q', 'I'], puzzle=P_KEY,
       door=("a door sealed with web-crusted iron.", "it needs the key from the caves above."),
       insc=("scratched into the rock:", "'her lair is locked. the key, above.'"),
       chest=(350, "spider silk and gold! +350 gold.", "the third runestone is yours!", 2, 0))
 # Frozen Deep (danger 4): an illusory wall hides the way down; rune plates open the troll's gate
 floor("frozen deep 1", 3, 31, 7, ("wraith", "troll", "giant spider", "wraith"),
-      {'t': ("troll", 2), 'h': ("wraith", 3)}, down=True, secret_to_down=True, items=['I'],
+      {'t': ("troll", 2), 'h': ("wraith", 3)}, down=True, secret_to_down=True, items=['Q', 'I'],
       insc=("frost spells out on the wall:", "'not every wall of ice is real.'"))
 floor("frozen deep 2", 3, 32, 4, ("troll", "wraith", "troll", "wraith"),
       {'t': ("troll", 2), 'f': ("frost troll", 1)}, protect='T', boss='f', boss_letters='f',
@@ -240,7 +242,7 @@ floor("frozen deep 2", 3, 32, 4, ("troll", "wraith", "troll", "wraith"),
       chest=(600, "a hoard frozen in ice! +600 gold.", "the fourth runestone is yours!", 3, 0))
 # Obsidian Keep (danger 5): iron, bone, gold levers; then speak the first flame's name
 floor("obsidian keep 1", 4, 41, 5, ("dark knight", "cultist", "troll", "cultist"),
-      {'n': ("dark knight", 2), 'u': ("cultist", 3)}, protect='V', items=['1', '2', '3', 'I'],
+      {'n': ("dark knight", 2), 'u': ("cultist", 3)}, protect='V', items=['Q', '1', '2', '3', 'I'],
       puzzle=P_LEVER,
       door=("an obsidian door bars the stairs.", "three levers must hold the key..."),
       insc=("etched in obsidian:", "'iron, then bone, then gold.'"))
@@ -274,6 +276,55 @@ DUNGEONS = [  # name, entrance message (<=38), floors, required runestones mask
     ("valhalla's gate", "valhalla's gate! danger 6. (e)nter?",  [8, 9, 10], 0x1f),
 ]
 
+# ------------------------------------------------------------------ people, quests and the story
+# A person is a list of pages; the first page whose conditions all hold is spoken (1-4 lines of
+# <=38 characters) and its actions run.  Quest stages: 0 unknown, 1 asked, 2 item found, 3 done.
+LOCKET, BOUNTY, STAR, HORN, BROK, CODEX, MAYOR = range(7)
+QUESTS = [("maud's locket", "crypt of varn. for maud"), ("the orc chief's bounty", "sunken halls. for garn"),
+          ("star iron", "webwood caves. brynja"), ("the horn of heimdall", "webwood caves. for ulf"),
+          ("brok's fate", "frozen deep. for hilde"), ("the flame codex", "obsidian keep. for elra")]
+                                                               # the quest log (q key)
+def Q(q, v): return ("q", q, v)              # quest q is at stage v
+def RUNES(n): return ("runes", n, 0)         # at least n runestones
+def SIGIL(b): return ("sigil", 1 << b, 0)    # runestone b taken
+def SETQ(q, v): return ("setq", q, v)
+def GOLD(n): return ("gold", n & 255, n >> 8)
+def XP(n): return ("xp", n & 255, n >> 8)
+def WEAPON(m, v): return ("weapon", m, v)
+def BONUS(s, v): return ("bonus", s, v)      # spell upgrade: 0 heal, 1 bolt, 2 song
+def say(*lines, when=(), do=()):
+    assert 1 <= len(lines) <= 4 and len(when) <= 2
+    return (tuple(when), lines, tuple(do))
+def npc(tile, *pages):
+    return (tile, pages)
+
+# the hermit's hut stands alone in the wilds
+HERMIT = npc("FOLK",                                   # quest 3: the horn of heimdall (webwood 1)
+    say("ulf: 'the horn sounds sweet again.", "play loud, bard. play for the gods.'",
+        when=[Q(HORN, 3)]),
+    say("hermit ulf: 'my horn! heimdall's own!", "bard, come. i'll teach you its song.'",
+        "sela's song grows stronger!", when=[Q(HORN, 2)], do=[BONUS(2, 6), SETQ(HORN, 3)]),
+    say("hermit ulf: 'goblins took my horn into", "the webwood caves. the upper halls.'",
+        when=[Q(HORN, 1)]),
+    say("hermit ulf: 'visitors? bah. unless...", "goblins stole my horn of heimdall.",
+        "bring it back from the webwood caves", "and i'll make it worth your while.'",
+        do=[SETQ(HORN, 1)]))
+
+# quest items lying in the dungeons: floor -> (quest, two lines)
+QITEMS = {
+    0: (LOCKET, "a silver locket lies among the bones.", "it must be maud's husband's!"),
+    2: (HORN, "a great horn, carved with old runes!", "the hermit's horn of heimdall."),
+    3: (STAR, "a lump of star iron, still warm!", "brynja's father will want this."),
+    4: (BROK, "a frozen miner, clutching a journal.", "it's brok. hilde must be told."),
+    6: (CODEX, "a book bound in living fire: the", "flame codex! sage elra must see it."),
+}
+
+# shown when a new game starts (lines of <=25 characters)
+INTRO = ["the world tree is dying.", "", "far below its roots,", "nidhogg the wyrm gnaws",
+         "and grows strong. when", "the last root breaks, all", "of gladsheim will fall.", "",
+         "the gods sealed the gate", "of valhalla with five", "runestones, and hid them",
+         "in the deep places.", "", "four heroes wake in the", "einherjar hall..."]
+
 # ------------------------------------------------------------------ towns
 # Each shop: (name<=20, quote<=20, sign line<=38, greeting<=38, 4 items)
 # Item: (name<=11, stat, price, effect, param)   effects below
@@ -303,12 +354,58 @@ TOWNS = [
           ("elven lute", 2, 60, E_TOME, 2), ("mana potion", 0, 15, E_MANA, 0)]),
       ],
       npcs=[
-        ("GUARD", "guard: 'welcome to thornbury.'", "'mind the orcs on the south road.'"),
-        ("GUARD", "guard: 'the arcanum sells old tomes.'", "'your wizard could use one.'"),
-        ("FOLK2", "maud: 'the crypt door has a mouth.'", "'it opens for the dead king's name.'"),
-        ("FOLK", "pip: 'are you real adventurers?'", "'my da says orcs smell awful!'"),
-        ("FOLK", "mayor brandt: 'five runestones seal'", "'valhalla's gate. find them!'"),
-        ("FOLK", "drunk: 'hic! levers... the sun...'", "'...always starts in the east! hic!'"),
+        npc("GUARD", say("guard: 'welcome to thornbury.'", "'mind the orcs on the south road.'")),
+        npc("GUARD", say("guard: 'the arcanum sells old tomes.'", "'your wizard could use one.'")),
+        npc("FOLK2",                                   # quest 0: maud's locket (crypt of varn)
+            say("maud: 'bless you, friends. the crypt", "door has a mouth. it opens for the",
+                "dead king's name: varn.'", when=[Q(LOCKET, 3)]),
+            say("maud: 'my husband's locket! oh, thank", "you. take this, it's all i have.'",
+                "the party gains 60 gold and 40 xp.",
+                when=[Q(LOCKET, 2)], do=[GOLD(60), XP(40), SETQ(LOCKET, 3)]),
+            say("maud: 'the locket is in the crypt of", "varn, west of the hall. please hurry.'",
+                when=[Q(LOCKET, 1)]),
+            say("maud: 'skeletons robbed my husband's", "grave. his silver locket is down in",
+                "the crypt of varn. bring it back?'", do=[SETQ(LOCKET, 1)])),
+        npc("FOLK",
+            say("pip: 'when i grow up i'll fight a", "dragon too! just like you!'", when=[RUNES(3)]),
+            say("pip: 'are you real adventurers?'", "'my da says orcs smell awful!'")),
+        npc("FOLK",                                    # the main story: rewards per runestone
+            say("mayor brandt: 'all five runestones!", "valhalla's gate lies in the far north.",
+                "end this, heroes. gladsheim prays.'", when=[RUNES(5)]),
+            say("mayor brandt: 'three runestones! the", "gate stirs. take this from the town.'",
+                "the party gains 300 gold.", when=[Q(MAYOR, 1), RUNES(3)],
+                do=[GOLD(300), SETQ(MAYOR, 2)]),
+            say("mayor brandt: 'a runestone! thornbury", "thanks you. a small purse, for now.'",
+                "the party gains 100 gold.", when=[Q(MAYOR, 0), RUNES(1)],
+                do=[GOLD(100), SETQ(MAYOR, 1)]),
+            say("mayor brandt: 'every runestone weakens", "the wyrm's hold. keep going!'", when=[RUNES(1)]),
+            say("mayor brandt: 'nidhogg gnaws the world", "tree. five runestones seal valhalla's",
+                "gate. find them, and end him!'")),
+        npc("FOLK", say("drunk: 'hic! levers... the sun...'", "'...always starts in the east! hic!'")),
+        npc("GUARD",                                   # quest 1: the orc chief's bounty
+            say("captain garn: 'the south road is safe", "again, thanks to you.'", when=[Q(BOUNTY, 3)]),
+            say("captain garn: 'the orc chief is dead?", "here's your bounty. well earned!'",
+                "the party gains 150 gold.", when=[SIGIL(1)], do=[GOLD(150), SETQ(BOUNTY, 3)]),
+            say("captain garn: 'the orc chief hides in", "the sunken halls, by the lake.'",
+                when=[Q(BOUNTY, 1)]),
+            say("captain garn: 'orcs raid our farms.", "kill their chief in the sunken halls",
+                "and the town pays 150 gold.'", do=[SETQ(BOUNTY, 1)])),
+        npc("FOLK2",                                   # quest 2: star iron (webwood caves 2)
+            say("brynja: 'how's the starblade? da says", "it's the finest thing he ever made.'",
+                when=[Q(STAR, 3)]),
+            say("brynja: 'star iron! da worked all eve", "and forged a starblade for torvik.'",
+                "torvik wields the starblade (21).", when=[Q(STAR, 2)],
+                do=[WEAPON(2, 21), SETQ(STAR, 3)]),
+            say("brynja: 'the star fell in the webwood.", "the iron lies on the lower floor.'",
+                when=[Q(STAR, 1)]),
+            say("brynja: 'my da, ironhand, needs star", "iron. it fell in the webwood caves.",
+                "bring it, he'll forge you a blade!'", do=[SETQ(STAR, 1)])),
+        npc("FOLK",
+            say("skald: 'hear the saga! odin's hall", "stands in gladsheim, at the world",
+                "tree. nidhogg gnaws its roots...'", when=[RUNES(5)], ),
+            say("skald: 'one day i'll sing of you,", "if you live. most don't.'", when=[RUNES(1)]),
+            say("skald: 'hear the saga! the gods hid", "five runestones in the deep places,",
+                "to seal valhalla's gate for ever.'")),
       ],
       rumors=["'the bone king fears fire, they say.'", "'the sun rises in the east, friend.'",
               "'parry when the skeletons swarm.'", "'plate armor saved my life. twice!'",
@@ -337,11 +434,37 @@ TOWNS = [
           ("golden harp", 6, 800, E_TOME, 2), ("elixir", 0, 40, E_MANA, 0)]),
       ],
       npcs=[
-        ("GUARD", "guard: 'ravenmoor, at world's edge.'", "'beyond lie the dark lands.'"),
-        ("FOLK2", "sage elra: 'the first flame was'", "'called ashara. remember it.'"),
-        ("FOLK", "miner: 'deep runes glow when stepped'", "'on. light them all, they say.'"),
-        ("FOLK", "pilgrim: 'valhalla's gate lies far'", "'north. nidhogg guards it.'"),
-        ("FOLK2", "old sailor: 'walls down there ain't'", "'always walls. mark me!'"),
+        npc("GUARD", say("guard: 'ravenmoor, at world's edge.'", "'beyond lie the dark lands.'")),
+        npc("FOLK2",                                   # quest 5: the flame codex (obsidian keep 1)
+            say("sage elra: 'the first flame was named", "ashara. speak it at the burning door.'",
+                when=[Q(CODEX, 3)]),
+            say("sage elra: 'the flame codex! at last!", "mira, read with me... feel the fire?'",
+                "mira's flame bolt grows stronger!", when=[Q(CODEX, 2)],
+                do=[BONUS(1, 16), SETQ(CODEX, 3)]),
+            say("sage elra: 'the codex lies in the", "obsidian keep, on the upper floor.",
+                "and the first flame's name: ashara.'", when=[Q(CODEX, 1)]),
+            say("sage elra: 'the first flame was named", "ashara. remember it! and the flame",
+                "codex is lost in the obsidian keep.'", "'bring it, and i'll teach your mage.'",
+                do=[SETQ(CODEX, 1)])),
+        npc("FOLK", say("miner: 'deep runes glow when stepped'", "'on. light them all, they say.'")),
+        npc("FOLK",
+            say("pilgrim: 'five runestones! go north,", "to valhalla's gate. i'll pray.'",
+                when=[RUNES(5)]),
+            say("pilgrim: 'valhalla's gate lies far'", "'north. nidhogg guards it.'")),
+        npc("FOLK2", say("old sailor: 'walls down there ain't'", "'always walls. mark me!'")),
+        npc("FOLK2",                                   # quest 4: brok's journal (frozen deep 1)
+            say("hilde: 'brok rests easy now, and so do", "i. thank you, heroes.'", when=[Q(BROK, 3)]),
+            say("hilde: 'his journal! brok wrote of me", "to the very end. take his savings.'",
+                "the party gains 400 gold and 200 xp.", when=[Q(BROK, 2)],
+                do=[GOLD(400), XP(200), SETQ(BROK, 3)]),
+            say("hilde: 'brok went down into the frozen", "deep. his journal will tell his fate.'",
+                when=[Q(BROK, 1)]),
+            say("hilde: 'my brok went mining in the", "frozen deep and never came home.",
+                "find out what became of him?'", do=[SETQ(BROK, 1)])),
+        npc("FOLK",
+            say("old sigrun: 'the wyrm stirs. i feel it", "in my bones. hurry, children.'", when=[RUNES(4)]),
+            say("old sigrun: 'the gods hid the runes", "where only heroes dare to go. are",
+                "you heroes? we'll see.'")),
       ],
       rumors=["'iron, bone, gold... or was it gold?'", "'a blessing makes you hardier.'",
               "'the death knight hits like a hammer.'", "'the frozen gate wants four runes.'",

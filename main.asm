@@ -9,16 +9,16 @@
 ;  Memory map
 ;    $0400-$07E7  graphics layer (40x25 glyph codes), drawn to the bitmap by render.asm
 ;    $0801-$1FFF  BASIC stub, engine core, compositor
-;    $2000-$29FF  monster portraits as loaded (copied to $C400)
-;    $2A00-$37FF  engine text, character sheet
-;    $3800-$3FFF  hires glyphs (tiles, walls, frame)
+;    $2000-$29FF  monster portraits as loaded; copied to $C400 at start, then this
+;                 becomes the last-presented graphics ($2000), text ($2400), colours ($2800)
+;    $3800-$3FFF  hires glyphs (font, tiles, walls, frame)
 ;    $4000-$4FFF  64x64 overworld
 ;    $5000-$57FF  town maps (2 x 32x32)
 ;    $5800-$58FF  game variables
 ;    $5A00-$5AFF  working copy of the current dungeon floor
-;    $5B00        row redraw flags      $5C00-$5FFF  small font
-;    $6000-$9FFF  combat, towns, saves, generated tables, floors (pristine)
-;    $A000-$B3CF  last-presented graphics, text layer, text colours (RAM under BASIC)
+;    $5B00        row redraw flags
+;    $6000-$B3FF  combat, towns, panel, text, saves, generated tables, pristine floors
+;                 (the part over $A000 sits under the BASIC ROM, which is switched out)
 ;    $B400-$BEFF  saved state of all 11 dungeon floors   $BF00 save copy of the variables
 ;    $C000-$C3FF  colour matrix (VIC bank 3), sprite pointers $C3F8
 ;    $C400-$CDFF  monster portraits
@@ -61,15 +61,13 @@ num     = $31
 ; ---------------------------------------------------------------- compositor (render.asm)
 EMPTY   = $ff
 VSCR    = $0400
-PG      = $a000         ; graphics codes as last presented
-VTX     = $a400
-VTC     = $ac00         ; = VTX + $0800
+PG      = $2000         ; graphics codes as last presented (over the portraits' load area)
+VTX     = $2400         ; 40x25 characters
+VTC     = $2800         ; 40x25 colours (= VTX + $0400)
 MATRIX  = $c000         ; colour matrix (VIC bank 3)
 BITMAP  = $e000         ; under the KERNAL ROM: the CPU writes RAM, the VIC reads RAM
 SPRDST  = $c400
 GLYPHS  = $3800         ; 256 x 8 hires glyphs (page aligned)
-FONT4H  = $5c00         ; small font, glyph in bits 7-5
-FONT4L  = $5e00         ; small font, glyph in bits 3-1
 tdirty  = $5b00         ; 25 row flags
 
 ; zero page for the compositor
@@ -133,6 +131,9 @@ oy      = VARS+$3b
 pvx     = VARS+$3c
 pvy     = VARS+$3d
 mwidth  = VARS+$3e
+pk      = VARS+$3f      ; panel key line index
+pkrow   = VARS+$4c
+rseed   = VARS+$4d      ; ow_draw: 5 * map row (terrain looks)
 inbuf   = VARS+$40      ; 12
 mbuf    = VARS+$50      ; 48-byte message builder
 wpn     = VARS+$80      ; 4: weapon value
@@ -166,7 +167,7 @@ savemagic = VARS+$c6    ; 2 bytes: 'K','4'
 GETIN   = $ffe4
 SPRITES = $2000        ; portraits as loaded; copied to SPRDST in bank 3
 SPR_PTR = (SPRDST - MATRIX) / 64
-VX      = 16           ; left edge (small-font columns) of full-view text screens
+VX      = 1            ; left edge of full-view text screens (shop, sheet, ending)
 OWMAP   = $4000
 DMAP    = $5a00
 HICODE  = $6000
@@ -176,7 +177,7 @@ TITLECOL = 7
 HEADCOL  = 3
 TEXTCOL  = 1
 DEADCOL  = 2
-PC       = 61       ; side panel column (small-font columns)
+PC       = 28       ; side panel column
 
 C_FLOOR  = 0
 C_WALL   = 1
@@ -190,6 +191,7 @@ C_KEY    = 10
 C_PLATE  = 11
 C_LIT    = 12
 C_SECRET = 13
+C_QUEST  = 14       ; a quest item (which one: lvl_qid)
 
 ; ---------------------------------------------------------------- macros
 !macro msg .s {
@@ -256,6 +258,7 @@ start
         jsr draw_frame
         jsr draw_panel
         jsr draw_party
+        jsr intro
         lda #START_X
         sta px
         lda #START_Y
@@ -325,6 +328,7 @@ new_game
         sta won
         ldx #15
 .ps     sta pstate,x
+        sta qs,x
         dex
         bpl .ps
         lda #60             ; a little starting coin for the shops
@@ -422,7 +426,7 @@ pause
 ; =====================================================================
 !zone draw_frame
 draw_frame
-        ldx #28             ; map/dungeon window: cells 0-29 x 0-19
+        ldx #26             ; map/dungeon window: cells 0-27 x 0-19
 .h      lda #CH_HLINE
         sta VSCR,x
         sta VSCR+19*40,x
@@ -436,7 +440,7 @@ draw_frame
         lda #CH_VLINE
         ldy #0
         sta (dst),y
-        ldy #29
+        ldy #27
         sta (dst),y
         inx
         cpx #19
@@ -444,110 +448,19 @@ draw_frame
         lda #CH_TL
         sta VSCR
         lda #CH_TR
-        sta VSCR+29
+        sta VSCR+27
         lda #CH_BL
         sta VSCR+19*40
         lda #CH_BR
-        sta VSCR+19*40+29
-        ldx #9              ; rule under the title
+        sta VSCR+19*40+27
+        ldx #11             ; rule under the title
 .u      lda #CH_HLINE
-        sta VSCR+2*40+30,x
+        sta VSCR+1*40+28,x
         dex
         bpl .u
         rts
 
-draw_panel
-        +print PC+1,1,s_title,TITLECOL
-        +print PC,4,s_party,HEADCOL
-        +print PC,9,s_gold,HEADCOL
-        +print PC,15,s_keys,HEADCOL
-        rts
-
-; party rows 5-8: name, HP (3), SP (2), level (2); then gold
-!zone draw_party
-draw_party
-        ldx #0
-.l      stx dpc
-        lda #TEXTCOL
-        ldy hp,x
-        bne +
-        lda #DEADCOL
-+       sta textcol
-        lda pnamep_lo,x
-        sta str
-        lda pnamep_hi,x
-        sta str+1
-        jsr .row
-        ldx #PC
-        jsr print_at
-        ldx dpc
-        lda hp,x
-        bne .alive
-        lda #<s_dead3
-        sta str
-        lda #>s_dead3
-        sta str+1
-        jsr .row
-        ldx #PC+7
-        jsr print_at
-        jmp .sp
-.alive  lda #3
-        sta ndig
-        jsr .row
-        lda hp,x
-        ldx #PC+7
-        jsr pu8
-.sp     ldx dpc
-        lda maxsp,x
-        bne .hassp
-        lda #<s_2sp
-        sta str
-        lda #>s_2sp
-        sta str+1
-        jsr .row
-        ldx #PC+11
-        jsr print_at
-        jmp .lv
-.hassp  lda #2
-        sta ndig
-        jsr .row
-        lda sp,x
-        ldx #PC+11
-        jsr pu8
-.lv     lda #2
-        sta ndig
-        ldx dpc
-        jsr .row
-        lda lvl,x
-        ldx #PC+14
-        jsr pu8
-        ldx dpc
-        inx
-        cpx #4
-        beq +
-        jmp .l
-+       jmp print_gold
-.row    lda dpc             ; Y = 5 + member, X = member
-        clc
-        adc #5
-        tay
-        ldx dpc
-        rts
-
-print_gold
-        lda gold
-        sta n16
-        lda gold+1
-        sta n16+1
-        lda #5
-        sta ndig
-        lda #TITLECOL
-        sta textcol
-        ldx #PC+11
-        ldy #9
-        jmp print_u
-
-; text cursor: dst/cdst = text layer position X (0-79), Y (0-24); marks the row for redraw
+; text cursor: dst/cdst = text layer position X (0-39), Y (0-24); marks the row for redraw
 set_cursor
         txa
         clc
@@ -658,22 +571,22 @@ print_u
 message
         sta str
         stx str+1
-        ldx #75
-.l      lda VTX+21*80+2,x
-        sta VTX+20*80+2,x
-        lda VTX+22*80+2,x
-        sta VTX+21*80+2,x
-        lda VTX+23*80+2,x
-        sta VTX+22*80+2,x
-        lda VTX+24*80+2,x
-        sta VTX+23*80+2,x
+        ldx #37
+.l      lda VTX+21*40+1,x
+        sta VTX+20*40+1,x
+        lda VTX+22*40+1,x
+        sta VTX+21*40+1,x
+        lda VTX+23*40+1,x
+        sta VTX+22*40+1,x
+        lda VTX+24*40+1,x
+        sta VTX+23*40+1,x
         lda #32
-        sta VTX+24*80+2,x
+        sta VTX+24*40+1,x
         lda #TEXTCOL        ; older lines turn white
-        sta VTC+20*80+2,x
-        sta VTC+21*80+2,x
-        sta VTC+22*80+2,x
-        sta VTC+23*80+2,x
+        sta VTC+20*40+1,x
+        sta VTC+21*40+1,x
+        sta VTC+22*40+1,x
+        sta VTC+23*40+1,x
         dex
         bpl .l
         lda #1
@@ -683,7 +596,7 @@ message
         sta tdirty+23
         lda #TITLECOL
         sta textcol
-        ldx #2
+        ldx #1
         ldy #24
         jmp print_at
 
@@ -813,42 +726,6 @@ ow_colors
         sta $d023
         rts
 
-!zone ow_status
-ow_status
-        +print PC,10,s_loc,HEADCOL
-        lda mode
-        cmp #2
-        bne +
-        ldx town
-        lda town_name_lo,x
-        sta str
-        lda town_name_hi,x
-        sta str+1
-        lda #TEXTCOL
-        sta textcol
-        ldx #PC
-        ldy #11
-        jsr print_at
-        jmp ++
-+       +print PC,11,s_wilds,TEXTCOL
-++      +print PC,12,s_xy,TEXTCOL
-        +printnum PC+2,12,px
-        +printnum PC+7,12,py
-        +print PC,13,s_blank,TEXTCOL
-        lda mode
-        cmp #2
-        beq .tk
-        +print PC,16,s_ow_k1,TEXTCOL
-        +print PC,17,s_ow_k2,TEXTCOL
-        +print PC,18,s_ow_k3,TEXTCOL
-        +print PC,19,s_ow_k4,TEXTCOL
-        rts
-.tk     +print PC,16,s_ow_k1,TEXTCOL
-        +print PC,17,s_tw_k2,TEXTCOL
-        +print PC,18,s_ow_k3,TEXTCOL
-        +print PC,19,s_tw_k4,TEXTCOL
-        rts
-
 ; tile at (tx,ty) -> A
 !zone get_tile
 get_tile
@@ -906,11 +783,11 @@ get_tile
         lda (src),y
         rts
 
-; 28 x 18 tiles, one cell each. Out in the wilds the party stays at view (14,9);
+; 26 x 18 tiles, one cell each. Out in the wilds the party stays at view (13,9);
 ; in a town the view stops at the town's edges so as much of it shows as possible.
-VIEW_W = 28
+VIEW_W = 26
 VIEW_H = 18
-PLAYER_VX = 14
+PLAYER_VX = 13
 PLAYER_VY = 9
 !zone ow_draw
 ow_draw
@@ -968,6 +845,11 @@ ow_draw
         adc ry
         sta ty
         jsr map_row
+        lda ty              ; rseed = 5 * map row
+        asl
+        asl
+        adc ty
+        sta rseed
         lda #0
         sta rx
 .col    lda ox
@@ -1002,17 +884,36 @@ ow_draw
         ldy rx
 +       lda #T_PLAYER
 .put    tax
+        lda tvar,x          ; terrain with several looks: pick one from the map position
+        bne .var
         lda tile_char,x
         sta (dst),y
+        jmp .nx
+.var    sta tmp2
+        lda rx              ; rnd64[(x + 5y) & 63]
+        clc
+        adc ox
+        adc rseed
+        and #63
+        tax
+        lda rnd64,x
+        clc
+        adc tmp2
+        tax
+        lda vtab,x
+        sta (dst),y
+.nx
         inc rx
         lda rx
         cmp #VIEW_W
-        bne .col
-        inc ry
+        beq +
+        jmp .col
++       inc ry
         lda ry
         cmp #VIEW_H
-        bne .row
-        rts
+        beq +
+        jmp .row
++       rts
 
 ; src = start of map row ty (overworld or town); src+1 = 0 if the row is off the map.
 ; mwidth = row length
@@ -1110,6 +1011,12 @@ ow_key
 +       cmp #$48            ; H
         bne +
         jmp camp_heal
++       cmp #$3f            ; ?  all the keys
+        bne +
+        jmp help_screen
++       cmp #$51            ; Q  quest log
+        bne +
+        jmp quest_log
 +       cmp #$56            ; V  save game
         bne +
         jmp save_game
@@ -1153,6 +1060,10 @@ ow_key
         bne +
         txa
         jmp town_bump       ; bumping into people, counters, signs
++       cpx #T_HUT          ; the hermit's hut
+        bne +
+        ldx #HERMIT_NPC
+        jmp talk_script
 +       +msg m_blocked
         rts
 .ok     stx tmp
@@ -1390,58 +1301,24 @@ clear_view
         ldx #1
 .r      lda scr_lo,x
         sta dst
+        lda tx_lo,x
+        sta src
         lda scr_hi,x
         sta dst+1
-        ldy #28
-        lda #EMPTY
-.g      sta (dst),y
-        dey
-        bne .g
-        lda tx_lo,x
-        sta dst
         lda tx_hi,x
-        sta dst+1
-        ldy #57
+        sta src+1
+        ldy #26
+.c      lda #EMPTY
+        sta (dst),y
         lda #32
-.t      sta (dst),y
+        sta (src),y
         dey
-        cpy #1
-        bne .t
+        bne .c
         lda #1
         sta tdirty,x
         inx
         cpx #19
         bne .r
-        rts
-
-dg_status
-        +print PC,10,s_loc,HEADCOL
-        ldx level
-        lda lvl_name_lo,x
-        sta str
-        lda lvl_name_hi,x
-        sta str+1
-        lda #TEXTCOL
-        sta textcol
-        ldx #PC
-        ldy #11
-        jsr print_at
-        +print PC,12,s_xy,TEXTCOL
-        +printnum PC+2,12,dpx
-        +printnum PC+7,12,dpy
-        +print PC,13,s_facing,TEXTCOL
-        ldx ddir
-        lda dirname_lo,x
-        sta str
-        lda dirname_hi,x
-        sta str+1
-        ldx #PC+7
-        ldy #13
-        jsr print_at
-        +print PC,16,s_dg_k1,TEXTCOL
-        +print PC,17,s_dg_k2,TEXTCOL
-        +print PC,18,s_dg_k3,TEXTCOL
-        +print PC,19,s_dg_k4,TEXTCOL
         rts
 
 ; X = index of (cx,cy) in the floor ; carry set if off the map
@@ -1503,7 +1380,7 @@ dg_render
         adc #0
         sta dst+1
         lda #D_CEIL
-        cpx #WIN/2
+        cpx #WIN_H/2
         bcc +
         lda #D_FLOOR
         cpx #11             ; floor seams at each depth boundary
@@ -1513,12 +1390,12 @@ dg_render
         cpx #15
         bne +
 .ln     lda #D_FLOORLN
-+       ldy #WIN-1
++       ldy #WIN_W-1
 -       sta (dst),y
         dey
         bpl -
         inx
-        cpx #WIN
+        cpx #WIN_H
         bne .clr
 
         lda #0
@@ -1615,6 +1492,12 @@ dg_key
 +       cmp #$48            ; H
         bne +
         jmp camp_heal
++       cmp #$3f            ; ?
+        bne +
+        jmp help_screen
++       cmp #$51            ; Q  quest log
+        bne +
+        jmp quest_log
 +       rts
 .left   lda ddir
         sec
@@ -1697,6 +1580,9 @@ arrive
 +       cmp #C_KEY
         bne +
         jmp pick_key
++       cmp #C_QUEST
+        bne +
+        jmp pick_quest
 +       cmp #C_PLATE
         bne +
         jmp light_plate
@@ -1951,7 +1837,7 @@ input_word
         sta inlen
 .draw   lda inlen
         clc
-        adc #4
+        adc #3
         tax
         ldy #24
         jsr set_cursor
@@ -2048,7 +1934,7 @@ scr_hi  !for r, 0, 24 { !byte >(VSCR + r*40) }
 pw_lo   !byte <10000, <1000, <100, <10, <1
 pw_hi   !byte >10000, >1000, >100, >10, >1
 bitmask !byte 1, 2, 4, 8, 16, 32, 64, 128
-spr_pos !byte 96,106, 144,106, 96,148, 144,148
+spr_pos !byte 88,106, 136,106, 88,148, 136,148
 
 dirname_lo !byte <s_n, <s_e, <s_s, <s_w
 dirname_hi !byte >s_n, >s_e, >s_s, >s_w
@@ -2072,6 +1958,7 @@ pclass_lo !byte <s_c0, <s_c1, <s_c2, <s_c3
 pclass_hi !byte >s_c0, >s_c1, >s_c2, >s_c3
 
 !source "render.asm"
+!source "quest.asm"
 
 low_end
 !if low_end > SPRITES { !error "low code overruns sprite data" }
@@ -2082,20 +1969,19 @@ low_end
 *= HICODE
 !source "combat.asm"
 !source "town.asm"
+!source "panel.asm"
+!source "text.asm"
+!source "sheet.asm"
 !source "saveload.asm"
 !source "build/gen.asm"
+!source "build/quests_hi.asm"
 
 code_end
-!if code_end > $a000 { !error "high code must stay below $A000 (BASIC ROM)" }
+!if code_end > $b400 { !error "high code runs into the saved floors at $B400" }
 
 ; ---------------------------------------------------------------- data
 *= SPRITES
         !binary "build/sprites.bin"
-; the gap between the monster portraits and the charset holds text and the sheet
-!source "text.asm"
-!source "sheet.asm"
-mid_end
-!if mid_end > GLYPHS { !error "text overruns the glyphs" }
 *= GLYPHS
         !binary "build/glyphs.bin"
 *= OWMAP
@@ -2103,7 +1989,5 @@ mid_end
 *= $5000
         !binary "build/town0.bin"
         !binary "build/town1.bin"
-*= FONT4H
-        !binary "build/font4h.bin"
-*= FONT4L
-        !binary "build/font4l.bin"
+!source "build/quests.asm"           ; people and quests: tables at $5C00, text at $2C00
+

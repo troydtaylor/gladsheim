@@ -2,7 +2,8 @@
 
 An Ultima II–style overworld and towns with Bard's Tale–style first-person dungeons for the
 Commodore 64. Party of four, experience levels 1–20, six dungeons on eleven floors, two towns with
-shops, a puzzle in every dungeon, and a final boss behind five runestones. Keyboard only.
+shops and people to talk to, six side quests, a puzzle in every dungeon, and a final boss behind five
+runestones. Keyboard only.
 
 The world is **Gladsheim**, the realm of Norse myth where Valhalla stands. Four heroes set out from
 the Einherjar Hall to win the five runestones that open Valhalla's Gate, where Nidhogg, the wyrm
@@ -17,8 +18,8 @@ Prebuilt images are in `dist/` (`gladsheim.d64`, `gladsheim.prg`); `./build.sh` 
 - **VICE:** `x64sc -autostart dist/gladsheim.d64`
 - **Real hardware / SD2IEC / Ultimate:** `LOAD"GLADSHEIM",8` then `RUN`
 
-The game is crunched with Exomizer: 58 blocks instead of 149, so it loads in well under half the
-time on a stock 1541; it unpacks itself in about four seconds.
+The game is crunched with Exomizer: 72 blocks instead of 170, so it loads in well under half the
+time on a stock 1541; it unpacks itself in a few seconds.
 
 ## Saving
 
@@ -33,10 +34,29 @@ dungeon floor. Use a writable copy of the disk image. Write-protect and disk err
 | W A S D / cursor keys — move | W — forward | A — attack | A–D — choose item |
 | E — enter dungeon or town | A / D — turn, S — about face | P — parry (halve damage) | 1–4 — who gets it |
 | walk into people, signs, counters | E — stairs, levers | H — Arden heals | X — leave |
-| C — character sheet | C — character sheet | B — Mira's flame bolt | |
+| C — character sheet, Q — quest log | C — sheet, Q — quest log | B — Mira's flame bolt | |
 | H — Arden heals (outside combat) | H — Arden heals | S — Sela's song (heals all) | |
 | V — save, L — load (overworld) | | | |
 | | walk into doors | R — run (50%) | |
+
+## People and side quests
+
+Townsfolk remember what you have done: what they say changes as quests move on and as runestones are
+won. Each person's lines are a short list of pages with conditions (a quest's stage, the number of
+runestones, one runestone in particular) and actions (set a quest's stage, gold, experience, a weapon,
+a spell upgrade), written in `content.py`. **Q** shows every quest you have heard of and where it stands.
+
+| Quest | Given by | Where | Reward |
+|---|---|---|---|
+| Maud's locket | Maud, Thornbury | Crypt of Varn | 60 gold, 40 XP |
+| The orc chief's bounty | Captain Garn, Thornbury | Sunken Halls (slay the Orc Chief) | 150 gold |
+| Star iron | Brynja, the smith's daughter, Thornbury | Webwood Caves, lower floor | the Starblade for Torvik |
+| The horn of Heimdall | Ulf, the hermit in his hut in the wilds | Webwood Caves, upper floor | Sela's song grows stronger |
+| Brok's fate | Hilde, Ravenmoor | Frozen Deep | 400 gold, 200 XP |
+| The flame codex | Sage Elra, Ravenmoor | Obsidian Keep, upper floor | Mira's flame bolt grows stronger |
+
+Mayor Brandt rewards the first and third runestones. Items can be found before anyone asks for them;
+take them back and they still count.
 
 ## The party and levelling
 
@@ -86,7 +106,7 @@ Pillow and ffmpeg for previews and video.
 
 The emulator in `tools/sim.py` includes a small fake 1541 (SETNAM, SETLFS, OPEN, LOAD, SAVE and the
 error channel) so saving and loading are tested too. The bot only presses keys. It reads emulated memory to see the map, solves every puzzle, shops,
-rests at inns, retreats when hurt, trains when under-levelled and kills the Wyrm. Across a dozen
+rests at inns, retreats when hurt, trains when under-levelled, finishes all six side quests and kills the Wyrm. Across a dozen
 random seeds it finishes the game in 170–220 battles, typically with 0–2 party wipes.
 
 ## How it fits
@@ -97,26 +117,26 @@ small in-memory layers, and a compositor (`render.asm`) turns only what changed 
 time the game waits for a key:
 
 - a **graphics layer**, 40×25 glyph codes: map tiles, dungeon wall pieces, the frame;
-- a **text layer**, 80×25 characters in a 3×7-pixel font, two letters per cell, used for the
-  side panel, messages, shops and the character sheet.
+- a **text layer**, 40×25 characters in an 8×8 font, used for the side panel, messages, shops,
+  dialogue and the character sheet.
 
-The overworld and towns show 28×18 tiles of 8×8 pixels; in towns the view stops at the walls so the
-whole town fits. The 3D dungeon view is 18×18 cells with true one-pixel diagonals. An overworld step
-redraws in about 0.16 s, a dungeon step in about 0.1 s.
+The overworld and towns show 26×18 tiles of 8×8 pixels; in towns the view stops at the walls so the
+whole town fits. Grass, water, forest, mountains, snow, ash, dead wood and roads each have two to four
+looks, picked per square from a fixed pseudo-random pattern, so the land doesn't tile. The 3D dungeon
+view fills the whole 26×18 window with true one-pixel diagonals.
 
 | Range | Contents |
 |---|---|
 | `$0400–$07E7` | graphics layer (glyph codes) |
-| `$0801–$1DFF` | engine core and compositor |
-| `$2000–$29FF` | monster portraits as loaded (copied to `$C400` at start) |
-| `$2A00–$36AE` | engine text, character sheet, ending |
-| `$3800–$3FFF` | 256 hires glyphs: frame, 35 terrain/town tiles, dungeon wall pieces |
+| `$0801–$1FFF` | engine core, compositor, quest engine |
+| `$2000–$29FF` | monster portraits as loaded (copied to `$C400` at start), then the last-presented graphics, the text layer and its colours |
+| `$2C00–$37FF` | dialogue |
+| `$3800–$3FFF` | 256 hires glyphs: font, frame, 36 map tiles and 15 terrain variants, dungeon wall pieces |
 | `$4000–$4FFF` | 64×64 overworld |
 | `$5000–$57FF` | two 32×32 town maps |
-| `$5800–$58FF` | game state · `$5A00` current dungeon floor · `$5B00` row redraw flags |
-| `$5C00–$5FFF` | the small font |
-| `$6000–$9B5C` | combat, towns, save/load, generated tables, 11 pristine floors, content text |
-| `$A000–$B3CF` | last-presented graphics, text layer and its colours (RAM under BASIC) |
+| `$5800–$58FF` | game state, quest stages included · `$5A00` current dungeon floor · `$5B00` row redraw flags |
+| `$5C00–$5FFF` | people's pages, quest tables, the opening story |
+| `$6000–$B3FF` | combat, towns, panel, sheet, save/load, generated tables, 11 pristine floors, text (RAM under BASIC from `$A000`) |
 | `$B400–$BFFF` | saved state of every floor + a copy of the game state = the `GLADSHEIM SAVE` file |
 | `$C000–$C3FF` | colour matrix (VIC bank 3) and sprite pointers |
 | `$C400–$CDFF` | monster portraits |
@@ -125,17 +145,19 @@ redraws in about 0.16 s, a dungeon step in about 0.1 s.
 **Content is data.** `content.py` holds every monster, floor, town, shop and line of dialogue;
 `gen.py` turns it into assembler tables and validates it: every floor is solvable (puzzle pieces
 reachable before their door, bosses impossible to walk around, keys above the doors that need them),
-every town shop and person reachable, every line fits its window. The nine newer floors are seeded
+every town shop and person reachable, every quest item where a quest expects it, every line fits its window. The nine newer floors are seeded
 mazes with puzzle pieces placed under those rules.
 
 ## Files
 
 - `main.asm` — engine core · `combat.asm` — combat, experience, levels · `town.asm` — towns and shops
 - `sheet.asm` — character sheet and ending · `text.asm` — engine messages · `saveload.asm` — disk saves
-- `render.asm` — the bitmap compositor · `hires.py` — tile, wall and small-font art
+- `render.asm` — the bitmap compositor · `panel.asm` — side panel and help · `quest.asm` — people, quests, story
+- `hires.py` — tile, terrain-variant and wall art
 - `content.py` — the game's content · `art.py` — monster portraits · `gen.py` — data generator
 - `tools/sim.py` — 6502 + VIC-II renderer · `tools/playtest.py` — full-game bot
-- `tools/highlights.py` — video · `tools/mockup.py`, `tools/d64.py`, `tools/tiles.py`, `tools/townview.py` — utilities
+- `tools/highlights.py` — video · `tools/romcheck.py` — checks the crunched program unpacks byte-exact
+- `tools/artpreview.py`, `tools/mockup.py`, `tools/d64.py`, `tools/tiles.py`, `tools/townview.py` — utilities
 
 ## License
 

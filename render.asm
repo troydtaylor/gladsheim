@@ -5,8 +5,8 @@
 ;
 ;  Graphics layer  VSCR  40x25 glyph codes (tiles, walls, frame).
 ;                        EMPTY ($FF) = show the text layer there.
-;  Text layer      VTX   80x25 screen codes in a 3x7 font, two per cell
-;                  VTC   80x25 colours (a cell takes its left letter's colour)
+;  Text layer      VTX   40x25 screen codes, drawn with font glyphs 0-63
+;                  VTC   40x25 colours
 ;
 ;  Graphics cells are redrawn when their code differs from the last one
 ;  presented (PG). Text rows are redrawn when marked in `tdirty`, which
@@ -75,20 +75,12 @@ clear_screen
         sta VTX,x
         sta VTX+$100,x
         sta VTX+$200,x
-        sta VTX+$300,x
-        sta VTX+$400,x
-        sta VTX+$500,x
-        sta VTX+$600,x
-        sta VTX+$700,x
+        sta VTX+$2e8,x
         lda #TEXTCOL
         sta VTC,x
         sta VTC+$100,x
         sta VTC+$200,x
-        sta VTC+$300,x
-        sta VTC+$400,x
-        sta VTC+$500,x
-        sta VTC+$600,x
-        sta VTC+$700,x
+        sta VTC+$2e8,x
         inx
         bne .t
 mark_all
@@ -194,57 +186,23 @@ draw_cell
         iny
         }
         rts
-.text   lda pcol            ; two small letters side by side
+.text   ldy pcol            ; a letter: font glyph 0-63 in its colour on black
+        lda (rc),y
         asl
-        tay
+        asl
+        asl
+        asl
+        sta (rm),y
         lda (rt),y
         and #63
-        sta lcode
-        iny
-        lda (rt),y
-        and #63
-        sta rcode
-        cmp #32
-        bne .ink
-        lda lcode
-        cmp #32
-        bne .ink
-        ldy #0              ; two spaces: a blank cell
-        tya
-        !for i, 0, 7 {
-        sta (bm),y
-        iny
-        }
-        ldy pcol
-        sta (rm),y
-        rts
-.ink    dey                 ; colour: the left letter's, unless it is a space
-        lda (rc),y
-        ldx lcode
-        cpx #32
-        bne +
-        iny
-        lda (rc),y
-+       asl
-        asl
-        asl
-        asl
-        ldy pcol
-        sta (rm),y
-        ldx lcode
-        lda font_lo,x
+        tax
+        lda glyph_lo,x
         sta gp
-        lda fonth_hi,x
+        lda glyph_hi,x
         sta gp+1
-        ldx rcode
-        lda font_lo,x
-        sta gq
-        lda fontl_hi,x
-        sta gq+1
         ldy #0
         !for i, 0, 7 {
         lda (gp),y
-        ora (gq),y
         sta (bm),y
         iny
         }
@@ -254,12 +212,9 @@ col8_lo  !for i, 0, 39 { !byte <(i*8) }
 col8_hi  !for i, 0, 39 { !byte >(i*8) }
 glyph_lo !for i, 0, 255 { !byte <(GLYPHS + i*8) }
 glyph_hi !for i, 0, 255 { !byte >(GLYPHS + i*8) }
-font_lo  !for i, 0, 63 { !byte <(i*8) }
-fonth_hi !for i, 0, 63 { !byte >(FONT4H + i*8) }
-fontl_hi !for i, 0, 63 { !byte >(FONT4L + i*8) }
 
 ; rows of the text layer and of the bitmap
-tx_lo   !for r, 0, 24 { !byte <(VTX + r*80) }
-tx_hi   !for r, 0, 24 { !byte >(VTX + r*80) }
+tx_lo   !for r, 0, 24 { !byte <(VTX + r*40) }
+tx_hi   !for r, 0, 24 { !byte >(VTX + r*40) }
 bm_lo   !for r, 0, 24 { !byte <(BITMAP + r*320) }
 bm_hi   !for r, 0, 24 { !byte >(BITMAP + r*320) }

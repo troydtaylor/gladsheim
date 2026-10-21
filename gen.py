@@ -87,6 +87,7 @@ FONT = {
  '=': [".....",".....","#####",".....","#####",".....","....."],
  '+': [".....","..#..","..#..","#####","..#..","..#..","....."],
  '*': [".....","#.#.#",".###.","#####",".###.","#.#.#","....."],
+ '#': ["#####","#####","#####","#####","#####","#####","#####"],
 }
 
 def screencode(ch):
@@ -164,6 +165,7 @@ tile("DEADWOOD", 2, True,  ["b..b", ".bb.", "..b.", "b.b.", ".bb.", "..b.", "..b
 tile("FOLK_IN",  4, False, [".bb.", ".ww.", "cccc", "cccc", ".cc.", "c..c", "b..b", "...."])
 tile("FOLK2_IN", 5, False, [".ww.", ".ww.", ".cc.", "cccc", "cccc", "cccc", "b..b", "...."])
 tile("BARREL_IN", 0, False, [".bb.", "bbbb", "wwww", "bbbb", "bbbb", "wwww", "bbbb", ".bb."])
+tile("HUT",      2, False, ["...b", ".bbb", "bbbb", "wwww", "w..w", "wbbw", "wbbw", "wwww"])
 
 T = {name: i for i, (name, _, _, _) in enumerate(TILES)}
 MCODE = {'.': '0', 'b': '1', 'w': '2', 'c': '3'}
@@ -214,77 +216,118 @@ put_mc(D_BRICK[2], ["1111", "1222", "1222", "1222", "1111", "2212", "2212", "221
 put_mc(D_BRICK[3], ["1111", "1333", "1333", "1333", "1111", "3313", "3313", "3313"])
 
 # ---------------------------------------------------------------- 3D view geometry
-WIN = 18                    # 18x18 char window
-INSET = [0, 3, 5, 7]        # plane inset (cols == rows -> 45 degree diagonals)
-SIZE = [WIN - 2 * a for a in INSET]  # 18, 12, 8, 4
+# A 26x18-cell window. Plane d (0 = the viewer, 3 = three cells ahead) spans rows IY[d] .. 18-IY[d]
+# and columns IX[d] .. 26-IX[d]; lateral neighbours are offset by the plane's width W[d].
+# Walls are rasterised at pixel level: cells a wall fully covers use texture glyphs, cells its
+# slanted top/bottom edge crosses get generated glyphs (wall over ceiling, or wall over floor).
+WIN_W, WIN_H = 26, 18
+WIN = WIN_H
+IY = [0, 3, 5, 7]
+IX = [0, 4, 7, 10]
+W = [WIN_W - 2 * x for x in IX]               # 26, 18, 12, 6
 VSCR = 0x0400               # virtual graphics screen (40x25 glyph codes)
-VIEW3D_X, VIEW3D_Y = 6, 1   # top-left cell of the 18x18 dungeon view
-WALLCOL = 8 | 6             # multicolour + blue
+VIEW3D_X, VIEW3D_Y = 1, 1   # top-left cell of the dungeon view
+PW_, PH_ = WIN_W * 8, WIN_H * 8
+GEN_BASE = 144              # generated edge glyphs go here upwards
+edge_glyphs = {}            # (bits tuple, fg, bg) -> code
+WALL_C, CEIL_C, FLOOR_C = 6, 0, 11
 
-elements = []   # (forward, lateral, [(row, col, char, color)])
+def edge_code(bits, ground):
+    key = (bits, WALL_C, ground)
+    if key not in edge_glyphs:
+        edge_glyphs[key] = GEN_BASE + len(edge_glyphs)
+        assert edge_glyphs[key] < 255, "out of glyph codes for the 3D view"
+    return edge_glyphs[key]
 
-DOORCOL = 8 | 2             # multicolour + red (wood)
-
-def front_face(d, L, door=False):
-    u0 = INSET[d] + L * SIZE[d]          # unclipped left edge
-    c0, c1 = max(u0, 0), min(u0 + SIZE[d] - 1, WIN - 1)
-    if c0 > c1:
-        return None
-    s = SIZE[d]
-    dw, dh = s // 2, (s * 3) // 4        # door rectangle, bottom-centred
-    dc0, dr0 = u0 + s // 4, INSET[d] + s - dh
-    cells = []
-    for r in range(INSET[d], WIN - INSET[d]):
-        for c in range(c0, c1 + 1):
-            if door and dc0 <= c < dc0 + dw and r >= dr0:
-                cells.append((r, c, D_DOORTOP if r == dr0 else D_DOOR, DOORCOL))
-            else:
-                cells.append((r, c, D_BRICK[d], WALLCOL))
-    return cells
+def side_poly(d, L):
+    """pixel test for the corridor-facing side of the cell at depth d, lateral L (L != 0)"""
+    if L < 0:
+        xa, xb = (IX[d] + (L + 1) * W[d]) * 8, (IX[d + 1] + (L + 1) * W[d + 1]) * 8
+    else:
+        xa, xb = (IX[d] + L * W[d]) * 8, (IX[d + 1] + L * W[d + 1]) * 8
+    ta, tb = IY[d] * 8, IY[d + 1] * 8
+    ba, bb = (WIN_H - IY[d]) * 8, (WIN_H - IY[d + 1]) * 8
+    lo, hi = min(xa, xb), max(xa, xb)
+    def inside(px, py):
+        x = px + 0.5
+        if not (lo <= x < hi):
+            return False
+        t = (x - xa) / (xb - xa)
+        top = ta + t * (tb - ta)
+        bot = ba + t * (bb - ba)
+        return top <= py + 0.5 < bot
+    far_edge = xb                              # the light seam where this wall meets the next
+    return inside, lo, hi, far_edge
 
 def side_face(d, L):
+    inside, lo, hi, far = side_poly(d, L)
     cells = []
-    for c in range(INSET[d], INSET[d + 1]):
-        last = (c == INSET[d + 1] - 1)
-        col = c if L < 0 else WIN - 1 - c
-        top, bot = (D_TOPL, D_BOTL) if L < 0 else (D_TOPR, D_BOTR)
-        body = (D_SIDE_EL if L < 0 else D_SIDE_ER) if last else D_SIDE
-        cells.append((c, col, top, WALLCOL))
-        for r in range(c + 1, WIN - 1 - c):
-            cells.append((r, col, body, WALLCOL))
-        cells.append((WIN - 1 - c, col, bot, WALLCOL))
+    c0, c1 = max(0, lo // 8), min(WIN_W, (hi + 7) // 8)
+    for c in range(c0, c1):
+        for r in range(WIN_H):
+            bits = tuple(sum(0x80 >> i for i in range(8) if inside(c * 8 + i, r * 8 + y)) for y in range(8))
+            n = sum(bin(b).count("1") for b in bits)
+            if n == 0:
+                continue
+            if n == 64:
+                if L < 0 and (c + 1) * 8 == far:
+                    code = D_SIDE_EL
+                elif L > 0 and c * 8 == far:
+                    code = D_SIDE_ER
+                else:
+                    code = D_SIDE
+            else:
+                code = edge_code(bits, CEIL_C if r < WIN_H // 2 else FLOOR_C)
+            cells.append((r, c, code))
     return cells
 
+def front_face(d, L, door=False):
+    u0 = IX[d] + L * W[d]
+    c0, c1 = max(u0, 0), min(u0 + W[d], WIN_W)
+    if c0 >= c1:
+        return None
+    h = WIN_H - 2 * IY[d]
+    dw, dh = max(2, W[d] // 3), (h * 3) // 4          # the door: a third as wide, 3/4 as tall
+    dc0, dr0 = u0 + (W[d] - dw) // 2, IY[d] + h - dh
+    cells = []
+    for r in range(IY[d], WIN_H - IY[d]):
+        for c in range(c0, c1):
+            if door and dc0 <= c < dc0 + dw and r >= dr0:
+                cells.append((r, c, D_DOORTOP if r == dr0 else D_DOOR))
+            else:
+                cells.append((r, c, D_BRICK[d]))
+    return cells
+
+elements = []   # (forward, lateral, cells, door cells)  -- in back-to-front drawing order
 for d in (3, 2, 1):
-    for L in (-2, 2, -1, 1, 0):
+    for L in (-3, 3, -2, 2, -1, 1, 0):
         cells = front_face(d, L)
         if cells:
             elements.append((d, L, cells, front_face(d, L, door=True)))
-    for L in (-1, 1):
+    for L in (-2, 2, -1, 1):
         sf = side_face(d - 1, L)
-        elements.append((d - 1, L, sf, sf))
+        if sf:
+            elements.append((d - 1, L, sf, sf))
 
 def runs(cells):
-    """merge into horizontal runs -> bytes lo,hi,len,char,color ... 0,0"""
-    grid = {}
-    for r, c, ch, col in cells:
-        grid[(r, c)] = (ch, col)
+    """merge into horizontal runs -> bytes lo, hi, length, glyph ... 0,0"""
+    grid = {(r, c): ch for r, c, ch in cells}
     out = bytearray()
-    for r in range(WIN):
+    for r in range(WIN_H):
         c = 0
-        while c < WIN:
+        while c < WIN_W:
             if (r, c) in grid:
                 v = grid[(r, c)]
                 c2 = c
-                while c2 + 1 < WIN and grid.get((r, c2 + 1)) == v:
+                while c2 + 1 < WIN_W and grid.get((r, c2 + 1)) == v:
                     c2 += 1
                 addr = VSCR + (VIEW3D_Y + r) * 40 + VIEW3D_X + c
-                out += bytes([addr & 0xFF, addr >> 8, c2 - c + 1, v[0]])
+                out += bytes([addr & 0xFF, addr >> 8, c2 - c + 1, v])
                 c = c2 + 1
             else:
                 c += 1
     out += b"\x00\x00"
-    assert len(out) < 256
+    assert len(out) < 256, len(out)
     return out
 
 FWD = [(0, -1), (1, 0), (0, 1), (-1, 0)]   # N E S W
@@ -297,12 +340,12 @@ import hires
 
 def check_chars(text, where):
     for ch in text.upper():
-        assert ch == ' ' or ch in hires.FONT3, f"{where}: no small-font glyph for {ch!r} in {text!r}"
+        assert ch == ' ' or ch in FONT, f"{where}: no glyph for {ch!r} in {text!r}"
     return text
 
 # ---------------------------------------------------------------- dungeon floors
 CELL = {'#': 1, '.': 0, 'S': 2, 'T': 3, 'D': 4, 'I': 5, '1': 6, '2': 7, '3': 8,
-        'V': 9, 'K': 10, 'P': 11, 'X': 13}
+        'V': 9, 'K': 10, 'P': 11, 'X': 13, 'Q': 14}
 GUARDS = []                 # (monster index, count)   cell value = $80 | index
 
 def floor_check(f):
@@ -324,7 +367,8 @@ def floor_check(f):
         return seen
     closed, opened = reach(False), reach(True)
     pos = lambda ch: [(x, y) for y, r in enumerate(rows) for x, c in enumerate(r) if c == ch]
-    for ch in "I123KP":
+    assert len(pos('Q')) == (f["index"] in C.QITEMS), f"{name}: quest item mismatch"
+    for ch in "I123KPQ":
         for p in pos(ch):
             assert p in closed, f"{name}: {ch} at {p} unreachable before the door"
     if pos('D'):
@@ -354,7 +398,8 @@ def floor_check(f):
         assert not any(p in seen for p in pos('T')), f"{name}: the boss can be walked around"
 
 levels_bin = []
-for f in C.FLOORS:
+for i, f in enumerate(C.FLOORS):
+    f["index"] = i
     floor_check(f)
     gidx = {}
     for letter, (mname, count) in f["guards"].items():
@@ -474,6 +519,7 @@ sites["vaults"] = pick(int(f * .88), f, order="far")
 ox, oy = sites["obsidian"]
 sites["ravenmoor"] = pick(int(f * .50), int(f * .74),
                           lambda x, y: 8 < abs(x - ox) + abs(y - oy) < 22)
+sites["hut"] = pick(int(f * .30), int(f * .50), lambda x, y: near(x, y, "FOREST", 1) and not near(x, y, "ROAD", 2))
 
 def paint(center, radius, mapping):
     cx, cy = center
@@ -496,6 +542,7 @@ for k in ("crypt", "sunken", "webwood", "frozen", "obsidian", "vaults"):
 for k in ("thornbury", "ravenmoor"):
     x, y = sites[k]
     world[y][x] = T["TOWN"]
+world[sites["hut"][1]][sites["hut"][0]] = T["HUT"]
 
 def lay_road(a, b):
     import heapq
@@ -514,7 +561,7 @@ def lay_road(a, b):
             step = {T["MOUNTAIN"]: None, T["WATER"]: 8, T["FOREST"]: 3, T["DEADWOOD"]: 3}.get(t, 1)
             if t == T["ROAD"]:
                 step = 0.5
-            if t in (T["DUNGEON"], T["TOWN"], T["CASTLE"]) and (nx, ny) != b:
+            if t == T["HUT"] or t in (T["DUNGEON"], T["TOWN"], T["CASTLE"]) and (nx, ny) != b:
                 step = None
             if step is None:
                 continue
@@ -546,7 +593,10 @@ for ddx, ddy in ((0, 1), (1, 0), (-1, 0), (0, -1)):
 assert start
 d_all, _ = bfs_ow(start, walkable)
 for k, p in sites.items():
-    assert p in d_all, f"{k} unreachable on the overworld"
+    if k == "hut":                      # the hut is bumped into, from any side
+        assert any((p[0] + a, p[1] + b) in d_all for a, b in ((1, 0), (-1, 0), (0, 1), (0, -1))), "hut"
+    else:
+        assert p in d_all, f"{k} unreachable on the overworld"
 owmap = bytearray(world[y][x] for y in range(N) for x in range(N))
 
 PLACES = [  # (site, kind 0 dungeon / 1 town, index)
@@ -629,7 +679,8 @@ def thornbury(t, people):
         t.put(x, y, "FOREST")
     for x, y in ((10, 9), (19, 9), (18, 13)):
         t.put(x, y, "BARREL")
-    for (x, y), (tile_name, _, _) in zip([(14, 22), (17, 22), (13, 11), (19, 11), (25, 10), (8, 20)], people):
+    for (x, y), (tile_name, _) in zip([(14, 22), (17, 22), (13, 11), (19, 11), (25, 10), (8, 20),
+                                       (24, 13), (7, 9), (10, 17)], people):
         t.put(x, y, tile_name); t.npcs.append((x, y))
 
 def ravenmoor(t, people):
@@ -655,7 +706,8 @@ def ravenmoor(t, people):
         t.put(x, y, "DEADWOOD" if (x + y) % 2 else "FOREST")
     for x, y in ((13, 16), (18, 16), (24, 20)):
         t.put(x, y, "BARREL")
-    for (x, y), (tile_name, _, _) in zip([(14, 22), (13, 12), (18, 9), (17, 16), (8, 19)], people):
+    for (x, y), (tile_name, _) in zip([(14, 22), (13, 12), (18, 9), (17, 16), (8, 19), (16, 4), (24, 19)],
+                                      people):
         t.put(x, y, tile_name); t.npcs.append((x, y))
 
 TOWNS = []
@@ -698,25 +750,41 @@ for code, rows in hires.FRAME.items():
 for t, (name, _, _, _) in enumerate(TILES):
     fg, bg, rows = hires.TILES[name]
     put_glyph(tile_base(t), rows, fg, bg)
+# terrain variants: look 0 replaces the tile's own glyph, the others go to codes 107-127.
+# The engine picks vtab[tvar[t] + rnd64[(x + 5y) & 63]] for tiles whose tvar is not 0.
+VAR_BASE = tile_base(len(TILES))
+tvar = [0] * len(TILES)
+vtab = [0] * 8                                # offset 0 = "no variants"
+next_code = VAR_BASE
+for name, (looks, slots) in hires.VARIANTS.items():
+    t = T[name]
+    bg0 = looks[0][1]
+    codes = [tile_base(t)]
+    for i, (fg, bg, rows) in enumerate(looks):
+        assert bg == bg0, f"{name}: every look needs the same ground colour (the party stands on it)"
+        if i:
+            codes.append(next_code)
+            next_code += 1
+        put_glyph(codes[i], rows, fg, bg)
+    assert len(slots) == 8
+    tvar[t] = len(vtab)
+    vtab += [codes[k] for k in slots]
+assert next_code <= 128, f"terrain variants overflow into the dungeon glyphs ({next_code})"
+_r = random.Random(64)
+rnd64 = [_r.randrange(8) for _ in range(64)]
 for code, (_, (fg, bg), rows) in hires.DUNGEON.items():
     put_glyph(code, rows, fg, bg)
+for (bits, fg, bg), code in edge_glyphs.items():
+    put_glyph(code, ["".join('#' if b & (0x80 >> i) else '.' for i in range(8)) for b in bits], fg, bg)
 assert D_CEIL == 128 and D_DOORTOP == 143
 
-font4h, font4l = bytearray(512), bytearray(512)
-def scode(ch):
-    return ord(ch) - 64 if 'A' <= ch <= 'Z' else ord(ch)
-for ch, rows in hires.FONT3.items():
-    sc = scode(ch)
-    assert 0 <= sc < 64, ch
-    for r, row in enumerate(rows):
-        bits = sum(4 >> i for i, c in enumerate(row) if c == '#')     # 3 bits, then 1 blank column
-        font4h[sc * 8 + r] = bits << 5
-        font4l[sc * 8 + r] = bits << 1
+for ch, rows in FONT.items():                # thin 5x7 letters, 1-pixel margin
+    rows8 = ["." + r + ".." for r in rows] + ["........"]
+    put_glyph(screencode(ch), rows8, 1, 0)
 
 # ---------------------------------------------------------------- write binaries
 open(os.path.join(OUT, "glyphs.bin"), "wb").write(glyphs)
-open(os.path.join(OUT, "font4h.bin"), "wb").write(font4h)
-open(os.path.join(OUT, "font4l.bin"), "wb").write(font4l)
+
 open(os.path.join(OUT, "owmap.bin"), "wb").write(owmap)
 open(os.path.join(OUT, "sprites.bin"), "wb").write(sprites)
 for i, t in enumerate(TOWNS):
@@ -745,7 +813,7 @@ def pad16(text):
 
 A(f"CH_HLINE = {CH_HLINE}\nCH_VLINE = {CH_VLINE}\nCH_TL = {CH_TL}\nCH_TR = {CH_TR}\nCH_BL = {CH_BL}\nCH_BR = {CH_BR}\nCH_SOLID = {CH_SOLID}")
 A(f"D_CEIL = {D_CEIL}\nD_FLOOR = {D_FLOOR}\nD_DARK = {D_DARK}\nD_FLOORLN = {D_FLOORLN}")
-A(f"WIN = {WIN}\nVIEW3D_X = {VIEW3D_X}\nVIEW3D_Y = {VIEW3D_Y}")
+A(f"WIN = {WIN}\nWIN_W = {WIN_W}\nWIN_H = {WIN_H}\nVIEW3D_X = {VIEW3D_X}\nVIEW3D_Y = {VIEW3D_Y}")
 for name, t in T.items():
     A(f"T_{name} = {t}")
 A(f"NUM_TILES = {len(TILES)}\nTILE_BASE = {TILE_BASE}")
@@ -758,6 +826,10 @@ for k in ("E_WEAPON", "E_ARMOR", "E_ALE", "E_ROOM", "E_RAISE", "E_CURE", "E_TOME
 A(f"CASTLE_X = {castle[0]}\nCASTLE_Y = {castle[1]}")
 A("tile_char  !byte " + ",".join(str(tile_base(t)) for t in range(len(TILES))))
 A("gcol !byte " + ",".join(str(v) for v in gcol))
+A("tvar !byte " + ",".join(str(v) for v in tvar))
+A("vtab !byte " + ",".join(str(v) for v in vtab))
+A("rnd64 !byte " + ",".join(str(v) for v in rnd64))
+A("; TILE NAMES " + ",".join(n for n, _, _, _ in TILES))
 A("tile_pass  !byte " + ",".join("1" if p else "0" for _, _, p, _ in TILES))
 
 # places
@@ -781,6 +853,7 @@ for d, (_, _, fl, _) in enumerate(C.DUNGEONS):
 byts("lvl_dungeon", (dg_of[i] for i in range(len(C.FLOORS))))
 byts("lvl_top", (1 if C.DUNGEONS[dg_of[i]][2][0] == i else 0 for i in range(len(C.FLOORS))))
 ptrs("lvl_name", [S(pad16(f["name"]), 16) for f in C.FLOORS])
+ptrs("lvl_short", [S(f["short"], 12) for f in C.FLOORS])
 byts("lvl_rnd", (C.MON[m] for f in C.FLOORS for m in f["rnd"]))
 byts("lvl_puzzle", (f["puzzle"] for f in C.FLOORS))
 ptrs("lvl_ans", [S(f.get("answer") or "-", 10) for f in C.FLOORS])
@@ -825,20 +898,21 @@ byts("town_page", TOWN_PAGES[:len(TOWNS)])
 byts("town_sx", (t.start[0] for t in TOWNS))
 byts("town_sy", (t.start[1] for t in TOWNS))
 ptrs("town_name", [S(pad16(spec["name"]), 16) for spec in C.TOWNS])
+ptrs("town_short", [S(spec["name"], 12) for spec in C.TOWNS])
 ptrs("town_wel", [S(f"welcome to {spec['name']}!") for spec in C.TOWNS])
 ptrs("town_ent", [S(f"the town of {spec['name']}. (e)nter?") for spec in C.TOWNS])
 ptrs("town_bye", [S(f"you leave {spec['name']}.") for spec in C.TOWNS])
 npc_first, allnpc = [], []
 for ti, (t, spec) in enumerate(zip(TOWNS, C.TOWNS)):
     npc_first.append(len(allnpc))
-    for (x, y), (_, l1, l2) in zip(t.npcs, spec["npcs"]):
-        allnpc.append((x, y, l1, l2))
+    for (x, y), (_, pages) in zip(t.npcs, spec["npcs"]):
+        allnpc.append((x, y, pages))
+A(f"HERMIT_NPC = {len(allnpc)}\nHUT_X = {sites['hut'][0]}\nHUT_Y = {sites['hut'][1]}")
+allnpc.append((sites["hut"][0], sites["hut"][1], C.HERMIT[1]))
 byts("town_npc_first", npc_first)
 byts("town_npc_count", (len(t.npcs) for t in TOWNS))
 byts("npc_x", (n[0] for n in allnpc))
 byts("npc_y", (n[1] for n in allnpc))
-ptrs("npc1", [S(n[2]) for n in allnpc])
-ptrs("npc2", [S(n[3]) for n in allnpc])
 ptrs("rumor", [S(r) for spec in C.TOWNS for r in spec["rumors"]])
 assert all(len(spec["rumors"]) == 8 for spec in C.TOWNS)
 shops = [(ti, s) for ti, spec in enumerate(C.TOWNS) for s in spec["shops"]]
@@ -889,6 +963,80 @@ for text, label in STRS.items():
     A(f'{label} !scr "{text.lower()}" : !byte $ff' if text else f"{label} !byte $ff")
 open(os.path.join(OUT, "gen.asm"), "w").write("\n".join(L) + "\n")
 
+# ---------------------------------------------------------------- people, quests, story -> build/quests.asm
+# text at $2C00-$37FF, tables at $5C00-$5FFF (both free RAM inside the loaded file)
+QL, QSTR = [], {}
+def QS(text, width=38):
+    check_chars(text, "quest text")
+    assert len(text) <= width, f"too long ({len(text)}>{width}): {text!r}"
+    if text not in QSTR:
+        QSTR[text] = f"qstr{len(QSTR)}"
+    return QSTR[text]
+COND = {"q": 1, "runes": 2, "sigil": 3}
+OPS = {"setq": 1, "gold": 2, "xp": 3, "weapon": 4, "bonus": 5}
+pages, lines, acts, npc_pg, npc_np = [], [], [], [], []
+for _, _, plist in allnpc:
+    npc_pg.append(len(pages))
+    npc_np.append(len(plist))
+    assert plist and not plist[-1][0], "a person's last page must have no conditions"
+    for when, text, do in plist:
+        cs = [(COND[c[0]], c[1], c[2]) for c in when] + [(0, 0, 0)] * (2 - len(when))
+        pages.append((cs, len(lines), len(text), len(acts), len(do)))
+        lines += [QS(t) for t in text]
+        acts += [(OPS[a[0]], a[1], a[2]) for a in do]
+        for a in do:
+            if a[0] == "setq":
+                assert a[1] < 16 and a[2] < 4
+assert len(pages) < 256 and len(lines) < 256 and len(acts) < 256
+def qbyts(label, vals):
+    QL.append(f"{label} !byte " + ",".join(str(v) for v in vals))
+def qptrs(label, labels):
+    labels = list(labels)
+    QL.append(f"{label}_lo !byte " + ",".join(f"<{l}" for l in labels))
+    QL.append(f"{label}_hi !byte " + ",".join(f">{l}" for l in labels))
+QL.append("*= $5c00")
+qbyts("npc_pg", npc_pg)
+qbyts("npc_np", npc_np)
+for k in range(2):
+    qbyts(f"pg_ct{k}", (p[0][k][0] for p in pages))
+    qbyts(f"pg_ca{k}", (p[0][k][1] for p in pages))
+    qbyts(f"pg_cb{k}", (p[0][k][2] for p in pages))
+qbyts("pg_l0", (p[1] for p in pages))
+qbyts("pg_nl", (p[2] for p in pages))
+qbyts("pg_a0", (p[3] for p in pages))
+qbyts("pg_na", (p[4] for p in pages))
+qptrs("ln", lines)
+qbyts("ac_op", (a[0] for a in acts))
+qbyts("ac_a", (a[1] for a in acts))
+qbyts("ac_b", (a[2] for a in acts))
+qbyts("lvl_qid", (C.QITEMS[i][0] if i in C.QITEMS else 255 for i in range(len(C.FLOORS))))
+qptrs("lvl_qt1", (QS(C.QITEMS[i][1]) if i in C.QITEMS else "qnone" for i in range(len(C.FLOORS))))
+qptrs("lvl_qt2", (QS(C.QITEMS[i][2]) if i in C.QITEMS else "qnone" for i in range(len(C.FLOORS))))
+QL.append(f"INTRO_N = {len(C.INTRO)}")
+qptrs("intro", (QS(t, 25) if t else "qnone" for t in C.INTRO))
+QL.append(f"NUM_QUESTS = {len(C.QUESTS)}")
+qptrs("qname", (QS(n, 22) for n, _ in C.QUESTS))
+qptrs("qhint", (QS(h, 24) for _, h in C.QUESTS))
+QL.append("quests_tables_end")
+QL.append('!if quests_tables_end > $6000 { !error "quest tables overflow $5C00-$5FFF" }')
+QL.append("*= $2c00")
+QL.append("qnone !byte $ff")
+QH, used = [], 1                     # what doesn't fit at $2C00 goes with the high code (quests_hi.asm)
+for text, label in QSTR.items():
+    line = f'{label} !scr "{text.lower()}" : !byte $ff'
+    if used + len(text) + 1 <= 0x3800 - 0x2c00:
+        QL.append(line)
+        used += len(text) + 1
+    else:
+        QH.append(line)
+QL.append("quests_text_end")
+QL.append('!if quests_text_end > $3800 { !error "quest text overflows $2C00-$37FF" }')
+open(os.path.join(OUT, "quests.asm"), "w").write("\n".join(QL) + "\n")
+open(os.path.join(OUT, "quests_hi.asm"), "w").write("\n".join(QH) + "\n")
+qtext = sum(len(t) + 1 for t in QSTR) + 1
+print(f"quests: {len(allnpc)} people, {len(pages)} pages, {len(lines)} lines, {len(acts)} actions, "
+      f"text {qtext} bytes ({used} at $2C00)")
+
 # previews
 try:
     from PIL import Image
@@ -905,5 +1053,6 @@ try:
 except ImportError:
     pass
 
-print(f"levels={len(C.FLOORS)} guards={len(GUARDS)} tiles={len(TILES)} strings={len(STRS)} far={far}")
+print(f"levels={len(C.FLOORS)} guards={len(GUARDS)} tiles={len(TILES)} strings={len(STRS)} far={far} "
+      f"3d-elements={len(elements)} edge-glyphs={len(edge_glyphs)}")
 print("sites:", {k: (v, dist.get(v)) for k, v in sites.items()})
