@@ -28,6 +28,7 @@ class C64:
         self.mem[0xFFE4:0xFFE4 + len(stub)] = bytes(stub)
         self.mem[0xD011] = 0x9B          # raster bit 8 set -> wait_vb falls through
         self.mem[0xD016] = 0xC8
+        self.mem[0xDD00] = 0x97                # VIC bank 0 until the game changes it
         entry = 0x080D
         if load == 0x0801:                    # follow the BASIC stub's SYS
             line = bytes(self.mem[0x0801:0x0830])
@@ -52,7 +53,7 @@ class C64:
         self.kernal = {0xFFBA: self._setlfs, 0xFFBD: self._setnam, 0xFFC0: self._open,
                        0xFFC3: self._close, 0xFFC6: self._chkin, 0xFFCC: self._clrchn,
                        0xFFCF: self._chrin, 0xFFD5: self._load, 0xFFD8: self._save,
-                       0xFFB7: self._readst}
+                       0xFFB7: self._readst, 0xFF90: lambda: None}
         for a in self.kernal:
             self.mem[a] = 0x60     # RTS; the Python handler runs first
         self.pause_addr = self.sym.get("pause")
@@ -146,38 +147,52 @@ class C64:
         return self.run_until_idle()
 
     def render(self, path, scale=3):
+        """Draw the VIC-II picture: text or multicolour text mode, or hires bitmap mode, plus sprites."""
         m = self.mem
-        cbase = ((m[0xD018] >> 1) & 7) * 0x800
-        sbase = (m[0xD018] >> 4) * 0x400
-        mc = bool(m[0xD016] & 0x10)
-        bg = [m[0xD021] & 15, m[0xD022] & 15, m[0xD023] & 15]
+        bank = (3 - (m[0xDD00] & 3)) * 0x4000 if m[0xDD02] & 3 else 0
+        sbase = bank + (m[0xD018] >> 4) * 0x400
         border = 32
         im = Image.new("RGB", (320 + 2 * border, 200 + 2 * border), PAL[m[0xD020] & 15])
         px = im.load()
-        for row in range(25):
-            for colm in range(40):
-                code = m[sbase + row * 40 + colm]
-                color = m[0xD800 + row * 40 + colm] & 15
-                for r in range(8):
-                    b = m[cbase + code * 8 + r]
-                    y = border + row * 8 + r
-                    if mc and color & 8:
-                        for i in range(4):
-                            v = (b >> (6 - 2 * i)) & 3
-                            c = PAL[(color & 7) if v == 3 else bg[v]]
-                            x = border + colm * 8 + i * 2
-                            px[x, y] = c
-                            px[x + 1, y] = c
-                    else:
+        if m[0xD011] & 0x20:                          # hires bitmap
+            bbase = bank + (0x2000 if m[0xD018] & 8 else 0)
+            for row in range(25):
+                for colm in range(40):
+                    cv = m[sbase + row * 40 + colm]
+                    fg, bgc = PAL[cv >> 4], PAL[cv & 15]
+                    for r in range(8):
+                        b = m[bbase + row * 320 + colm * 8 + r]
+                        y = border + row * 8 + r
                         for i in range(8):
-                            c = PAL[color] if b & (0x80 >> i) else PAL[bg[0]]
-                            px[border + colm * 8 + i, y] = c
+                            px[border + colm * 8 + i, y] = fg if b & (0x80 >> i) else bgc
+        else:
+            cbase = bank + ((m[0xD018] >> 1) & 7) * 0x800
+            mc = bool(m[0xD016] & 0x10)
+            bg = [m[0xD021] & 15, m[0xD022] & 15, m[0xD023] & 15]
+            for row in range(25):
+                for colm in range(40):
+                    code = m[sbase + row * 40 + colm]
+                    color = m[0xD800 + row * 40 + colm] & 15
+                    for r in range(8):
+                        b = m[cbase + code * 8 + r]
+                        y = border + row * 8 + r
+                        if mc and color & 8:
+                            for i in range(4):
+                                v = (b >> (6 - 2 * i)) & 3
+                                c = PAL[(color & 7) if v == 3 else bg[v]]
+                                x = border + colm * 8 + i * 2
+                                px[x, y] = c
+                                px[x + 1, y] = c
+                        else:
+                            for i in range(8):
+                                c = PAL[color] if b & (0x80 >> i) else PAL[bg[0]]
+                                px[border + colm * 8 + i, y] = c
         # sprites (sprite 0 has highest priority, so draw 7..0)
         en = m[0xD015]
         for i in range(7, -1, -1):
             if not en & (1 << i):
                 continue
-            data = m[sbase + 0x3F8 + i] * 64
+            data = bank + m[sbase + 0x3F8 + i] * 64
             sx = m[0xD000 + 2 * i] | ((m[0xD010] >> i) & 1) << 8
             sy = m[0xD001 + 2 * i]
             xe, ye = (m[0xD01D] >> i) & 1, (m[0xD017] >> i) & 1
@@ -204,11 +219,14 @@ class C64:
         im.resize((im.width * scale, im.height * scale), Image.NEAREST).save(path)
 
     def screen_text(self):
+        """the text on screen: the game's 80-column text layer when it has one, else the char screen"""
+        vtx = self.sym.get("VTX")
+        cols, base = (80, vtx) if vtx else (40, 0x0400)
         out = []
         for row in range(25):
             line = ""
-            for c in range(40):
-                v = self.mem[0x0400 + row * 40 + c]
+            for c in range(cols):
+                v = self.mem[base + row * cols + c]
                 line += chr(v + 64) if 1 <= v <= 26 else (chr(v) if 32 <= v < 64 else '#')
             out.append(line)
         return "\n".join(out)

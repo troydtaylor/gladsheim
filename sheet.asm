@@ -6,7 +6,7 @@ char_sheet
         lda #1
         sta insheet
         jsr clear_view
-        +print 2,1,s_cs_title,TITLECOL
+        +print VX+2,1,s_cs_title,TITLECOL
         lda #0
         sta member
 .m      lda member          ; base row = 2 + 4*member
@@ -25,7 +25,7 @@ char_sheet
         sta str
         lda pnamep_hi,x
         sta str+1
-        ldx #2
+        ldx #VX+2
         ldy n3row
         jsr print_at
         ldx member
@@ -33,21 +33,21 @@ char_sheet
         sta str
         lda pclass_hi,x
         sta str+1
-        ldx #9
+        ldx #VX+9
         ldy n3row
         jsr print_at
         lda #<s_lv
         sta str
         lda #>s_lv
         sta str+1
-        ldx #18
+        ldx #VX+18
         ldy n3row
         jsr print_at
         lda #2
         sta ndig
         ldx member
         lda lvl,x
-        ldx #20
+        ldx #VX+20
         ldy n3row
         jsr pu8
         inc n3row           ; --- row 2: hp, sp
@@ -55,31 +55,31 @@ char_sheet
         sta str
         lda #>s_cs_b
         sta str+1
-        ldx #2
+        ldx #VX+2
         ldy n3row
         jsr print_at
         lda #3
         sta ndig
         ldx member
         lda hp,x
-        ldx #5
+        ldx #VX+5
         ldy n3row
         jsr pu8
         ldx member
         lda maxhp,x
-        ldx #9
+        ldx #VX+9
         ldy n3row
         jsr pu8
         lda #2
         sta ndig
         ldx member
         lda sp,x
-        ldx #17
+        ldx #VX+17
         ldy n3row
         jsr pu8
         ldx member
         lda maxsp,x
-        ldx #20
+        ldx #VX+20
         ldy n3row
         jsr pu8
         inc n3row           ; --- row 3: attack (weapon + might), armour, xp
@@ -87,7 +87,7 @@ char_sheet
         sta str
         lda #>s_cs_c
         sta str+1
-        ldx #2
+        ldx #VX+2
         ldy n3row
         jsr print_at
         lda #3
@@ -96,14 +96,14 @@ char_sheet
         lda wpn,x
         clc
         adc mgt,x
-        ldx #5
+        ldx #VX+5
         ldy n3row
         jsr pu8
         lda #2
         sta ndig
         ldx member
         lda arm,x
-        ldx #12
+        ldx #VX+12
         ldy n3row
         jsr pu8
         lda #5
@@ -113,7 +113,7 @@ char_sheet
         sta n16
         lda xp_h,x
         sta n16+1
-        ldx #18
+        ldx #VX+18
         ldy n3row
         jsr print_u
         inc member
@@ -121,7 +121,7 @@ char_sheet
         cmp #4
         beq +
         jmp .m
-+       +print 2,18,s_sig1,HEADCOL      ; runestones held
++       +print VX+2,18,s_sig1,HEADCOL      ; runestones held
         lda sigils
         ldx #0
 .pop    lsr
@@ -132,7 +132,7 @@ char_sheet
         txa
         ora #$30
         sta tmp             ; set_cursor uses A
-        ldx #14
+        ldx #VX+14
         ldy #18
         jsr set_cursor
         ldy #0
@@ -174,7 +174,7 @@ the_end
         clc
         adc #3
         tay
-        ldx #3
+        ldx #VX+3
         jsr print_at
         ldx member
         inx

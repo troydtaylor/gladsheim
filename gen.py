@@ -161,6 +161,9 @@ tile("BARREL",   0, False, [".bb.", "bbbb", "wwww", "bbbb", "bbbb", "wwww", "bbb
 tile("SNOW",     1, True,  ["wwww", "wcww", "wwww", "wwwc", "wwww", "cwww", "wwww", "wwcw"])
 tile("ASH",      2, True,  ["....", ".b..", "...c", "....", "b...", "....", "..b.", "c..."])
 tile("DEADWOOD", 2, True,  ["b..b", ".bb.", "..b.", "b.b.", ".bb.", "..b.", "..b.", ".bbb"])
+tile("FOLK_IN",  4, False, [".bb.", ".ww.", "cccc", "cccc", ".cc.", "c..c", "b..b", "...."])
+tile("FOLK2_IN", 5, False, [".ww.", ".ww.", ".cc.", "cccc", "cccc", "cccc", "b..b", "...."])
+tile("BARREL_IN", 0, False, [".bb.", "bbbb", "wwww", "bbbb", "bbbb", "wwww", "bbbb", ".bb."])
 
 T = {name: i for i, (name, _, _, _) in enumerate(TILES)}
 MCODE = {'.': '0', 'b': '1', 'w': '2', 'c': '3'}
@@ -214,7 +217,8 @@ put_mc(D_BRICK[3], ["1111", "1333", "1333", "1333", "1111", "3313", "3313", "331
 WIN = 18                    # 18x18 char window
 INSET = [0, 3, 5, 7]        # plane inset (cols == rows -> 45 degree diagonals)
 SIZE = [WIN - 2 * a for a in INSET]  # 18, 12, 8, 4
-BUF, CBUF = 0xC000, 0xC200  # offscreen char / colour buffers
+VSCR = 0x0400               # virtual graphics screen (40x25 glyph codes)
+VIEW3D_X, VIEW3D_Y = 6, 1   # top-left cell of the 18x18 dungeon view
 WALLCOL = 8 | 6             # multicolour + blue
 
 elements = []   # (forward, lateral, [(row, col, char, color)])
@@ -274,8 +278,8 @@ def runs(cells):
                 c2 = c
                 while c2 + 1 < WIN and grid.get((r, c2 + 1)) == v:
                     c2 += 1
-                addr = BUF + r * WIN + c
-                out += bytes([addr & 0xFF, addr >> 8, c2 - c + 1, v[0], v[1]])
+                addr = VSCR + (VIEW3D_Y + r) * 40 + VIEW3D_X + c
+                out += bytes([addr & 0xFF, addr >> 8, c2 - c + 1, v[0]])
                 c = c2 + 1
             else:
                 c += 1
@@ -289,10 +293,11 @@ RIGHT = [(1, 0), (0, 1), (-1, 0), (0, -1)]
 # ---------------------------------------------------------------- content
 import content as C
 import art
+import hires
 
 def check_chars(text, where):
     for ch in text.upper():
-        assert ch == ' ' or ch in FONT, f"{where}: no glyph for {ch!r} in {text!r}"
+        assert ch == ' ' or ch in hires.FONT3, f"{where}: no small-font glyph for {ch!r} in {text!r}"
     return text
 
 # ---------------------------------------------------------------- dungeon floors
@@ -551,6 +556,8 @@ PLACES = [  # (site, kind 0 dungeon / 1 town, index)
 # ---------------------------------------------------------------- towns
 TW, TH = 32, 25
 
+PEOPLE = {T[n] for n in ("GUARD", "FOLK", "FOLK2", "FOLK_IN", "FOLK2_IN")}
+
 class Town:
     def __init__(self):
         self.m = [[T["COBBLE"]] * TW for _ in range(TH)]
@@ -562,6 +569,8 @@ class Town:
         self.shops, self.npcs, self.start = [], [], (15, 23)
 
     def put(self, x, y, name):
+        if self.m[y][x] == T["FLOOR"] and f"{name}_IN" in T:
+            name = f"{name}_IN"                 # drawn on wood instead of cobblestone
         self.m[y][x] = T[name]
 
     def building(self, x0, y0, x1, y1, door, sign_at, sign_tile):
@@ -587,6 +596,7 @@ class Town:
                        for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)), f"{name}: shop {i} unreachable"
         for x, y in self.npcs:
             assert nb(x, y), f"{name}: npc at {(x, y)} unreachable"
+            assert self.m[y][x] in PEOPLE, f"{name}: npc at {(x, y)} is not a person"
         assert (15, TH - 1) in seen, f"{name}: gate unreachable"
 
     def bin(self):
@@ -675,8 +685,38 @@ for img in art.IMAGES:
             blk.append(0)
             sprites += blk
 
+# ---------------------------------------------------------------- hires glyphs for the bitmap renderer
+glyphs = bytearray(2048)
+gcol = bytearray(256)                       # per glyph: fg << 4 | bg
+def put_glyph(code, rows, fg, bg):
+    assert len(rows) == 8 and all(len(r) == 8 for r in rows), code
+    for r, row in enumerate(rows):
+        glyphs[code * 8 + r] = sum(0x80 >> i for i, ch in enumerate(row) if ch == '#')
+    gcol[code] = (fg << 4) | bg
+for code, rows in hires.FRAME.items():
+    put_glyph(code, rows, *hires.FRAMECOL)
+for t, (name, _, _, _) in enumerate(TILES):
+    fg, bg, rows = hires.TILES[name]
+    put_glyph(tile_base(t), rows, fg, bg)
+for code, (_, (fg, bg), rows) in hires.DUNGEON.items():
+    put_glyph(code, rows, fg, bg)
+assert D_CEIL == 128 and D_DOORTOP == 143
+
+font4h, font4l = bytearray(512), bytearray(512)
+def scode(ch):
+    return ord(ch) - 64 if 'A' <= ch <= 'Z' else ord(ch)
+for ch, rows in hires.FONT3.items():
+    sc = scode(ch)
+    assert 0 <= sc < 64, ch
+    for r, row in enumerate(rows):
+        bits = sum(4 >> i for i, c in enumerate(row) if c == '#')     # 3 bits, then 1 blank column
+        font4h[sc * 8 + r] = bits << 5
+        font4l[sc * 8 + r] = bits << 1
+
 # ---------------------------------------------------------------- write binaries
-open(os.path.join(OUT, "charset.bin"), "wb").write(charset)
+open(os.path.join(OUT, "glyphs.bin"), "wb").write(glyphs)
+open(os.path.join(OUT, "font4h.bin"), "wb").write(font4h)
+open(os.path.join(OUT, "font4l.bin"), "wb").write(font4l)
 open(os.path.join(OUT, "owmap.bin"), "wb").write(owmap)
 open(os.path.join(OUT, "sprites.bin"), "wb").write(sprites)
 for i, t in enumerate(TOWNS):
@@ -705,10 +745,10 @@ def pad16(text):
 
 A(f"CH_HLINE = {CH_HLINE}\nCH_VLINE = {CH_VLINE}\nCH_TL = {CH_TL}\nCH_TR = {CH_TR}\nCH_BL = {CH_BL}\nCH_BR = {CH_BR}\nCH_SOLID = {CH_SOLID}")
 A(f"D_CEIL = {D_CEIL}\nD_FLOOR = {D_FLOOR}\nD_DARK = {D_DARK}\nD_FLOORLN = {D_FLOORLN}")
-A(f"BUF = ${BUF:04X}\nCBUF = ${CBUF:04X}\nWIN = {WIN}")
+A(f"WIN = {WIN}\nVIEW3D_X = {VIEW3D_X}\nVIEW3D_Y = {VIEW3D_Y}")
 for name, t in T.items():
     A(f"T_{name} = {t}")
-A(f"NUM_TILES = {len(TILES)}")
+A(f"NUM_TILES = {len(TILES)}\nTILE_BASE = {TILE_BASE}")
 A(f"START_X = {start[0]}\nSTART_Y = {start[1]}")
 A(f"TOWN_H = {TH}\nNUM_TOWNS = {len(TOWNS)}\nNUM_PLACES = {len(PLACES)}")
 A(f"NUM_DUNGEONS = {len(C.DUNGEONS)}\nNUM_LEVELS = {len(C.FLOORS)}\nNUM_MON = {len(C.MONSTERS)}")
@@ -717,7 +757,7 @@ for k in ("E_WEAPON", "E_ARMOR", "E_ALE", "E_ROOM", "E_RAISE", "E_CURE", "E_TOME
     A(f"{k} = {getattr(C, k)}")
 A(f"CASTLE_X = {castle[0]}\nCASTLE_Y = {castle[1]}")
 A("tile_char  !byte " + ",".join(str(tile_base(t)) for t in range(len(TILES))))
-A("tile_color !byte " + ",".join(str(8 | c) for _, c, _, _ in TILES))
+A("gcol !byte " + ",".join(str(v) for v in gcol))
 A("tile_pass  !byte " + ",".join("1" if p else "0" for _, _, p, _ in TILES))
 
 # places
@@ -733,7 +773,7 @@ ptrs("dg_msg", [S(msg) for _, msg, _, _ in C.DUNGEONS])
 
 # levels
 ptrs("lvl_src", [f"lvl_data{i}" for i in range(len(C.FLOORS))])
-byts("lvl_save_hi", (0xC4 + i for i in range(len(C.FLOORS))))
+byts("lvl_save_hi", (0xB4 + i for i in range(len(C.FLOORS))))
 dg_of = {}
 for d, (_, _, fl, _) in enumerate(C.DUNGEONS):
     for i in fl:

@@ -7,18 +7,22 @@
 ;  Build:  ./build.sh   (python3 gen.py; acme main.asm; d64)
 ;
 ;  Memory map
-;    $0400        screen            $07F8  sprite pointers
-;    $0801-$1FFF  BASIC stub, engine core
-;    $2000-$29FF  monster portraits (10 x 4 sprites)
+;    $0400-$07E7  graphics layer (40x25 glyph codes), drawn to the bitmap by render.asm
+;    $0801-$1FFF  BASIC stub, engine core, compositor
+;    $2000-$29FF  monster portraits as loaded (copied to $C400)
 ;    $2A00-$37FF  engine text, character sheet
-;    $3800-$3FFF  charset
+;    $3800-$3FFF  hires glyphs (tiles, walls, frame)
 ;    $4000-$4FFF  64x64 overworld
 ;    $5000-$57FF  town maps (2 x 32x32)
 ;    $5800-$58FF  game variables
 ;    $5A00-$5AFF  working copy of the current dungeon floor
-;    $6000-$9FFF  combat, towns, generated tables, floors (pristine)
-;    $C000-$C3FF  3D view buffers
-;    $C400-$CEFF  saved state of all 11 dungeon floors
+;    $5B00        row redraw flags      $5C00-$5FFF  small font
+;    $6000-$9FFF  combat, towns, saves, generated tables, floors (pristine)
+;    $A000-$B3CF  last-presented graphics, text layer, text colours (RAM under BASIC)
+;    $B400-$BEFF  saved state of all 11 dungeon floors   $BF00 save copy of the variables
+;    $C000-$C3FF  colour matrix (VIC bank 3), sprite pointers $C3F8
+;    $C400-$CDFF  monster portraits
+;    $E000-$FF3F  hires bitmap (RAM under the KERNAL)
 ; =====================================================================
 !cpu 6502
 !to "build/proto.prg", cbm
@@ -53,6 +57,38 @@ ry      = $2e
 cx      = $2f
 cy      = $30
 num     = $31
+
+; ---------------------------------------------------------------- compositor (render.asm)
+EMPTY   = $ff
+VSCR    = $0400
+PG      = $a000         ; graphics codes as last presented
+VTX     = $a400
+VTC     = $ac00         ; = VTX + $0800
+MATRIX  = $c000         ; colour matrix (VIC bank 3)
+BITMAP  = $e000         ; under the KERNAL ROM: the CPU writes RAM, the VIC reads RAM
+SPRDST  = $c400
+GLYPHS  = $3800         ; 256 x 8 hires glyphs (page aligned)
+FONT4H  = $5c00         ; small font, glyph in bits 7-5
+FONT4L  = $5e00         ; small font, glyph in bits 3-1
+tdirty  = $5b00         ; 25 row flags
+
+; zero page for the compositor
+rg      = $40           ; VSCR row
+rp      = $42           ; PG row
+rm      = $44           ; MATRIX row
+rt      = $46           ; VTX row
+rc      = $48           ; VTC row
+bm      = $4a           ; bitmap cell
+gp      = $4c           ; glyph / font pointer
+gq      = $4e           ; second font pointer
+prow    = $50
+pcol    = $51
+pdirty  = $52
+lcode   = $53
+rcode   = $54
+under   = $55           ; terrain under the party (its background colour shows)
+brow    = $56           ; bitmap address of the row being presented
+offmap  = $58           ; tile shown beyond the map's edge
 
 ; ---------------------------------------------------------------- variables
 VARS    = $5800
@@ -92,6 +128,11 @@ ndig    = VARS+$36
 pz      = VARS+$37
 dmg_hi  = VARS+$38
 acnt    = VARS+$39      ; monster attacks left this round
+ox      = VARS+$3a      ; map view origin and the party's place in it
+oy      = VARS+$3b
+pvx     = VARS+$3c
+pvy     = VARS+$3d
+mwidth  = VARS+$3e
 inbuf   = VARS+$40      ; 12
 mbuf    = VARS+$50      ; 48-byte message builder
 wpn     = VARS+$80      ; 4: weapon value
@@ -123,11 +164,9 @@ savepy  = VARS+$c5
 savemagic = VARS+$c6    ; 2 bytes: 'K','4'
 
 GETIN   = $ffe4
-SCREEN  = $0400
-COLRAM  = $d800
-SPRITES = $2000
-SPR_PTR = SPRITES / 64
-CHARSET = $3800
+SPRITES = $2000        ; portraits as loaded; copied to SPRDST in bank 3
+SPR_PTR = (SPRDST - MATRIX) / 64
+VX      = 16           ; left edge (small-font columns) of full-view text screens
 OWMAP   = $4000
 DMAP    = $5a00
 HICODE  = $6000
@@ -137,7 +176,7 @@ TITLECOL = 7
 HEADCOL  = 3
 TEXTCOL  = 1
 DEADCOL  = 2
-PC       = 24       ; side panel column
+PC       = 61       ; side panel column (small-font columns)
 
 C_FLOOR  = 0
 C_WALL   = 1
@@ -210,14 +249,10 @@ start
         lda #0
         sta $d020
         sta $d021
-        lda #$1e            ; screen $0400, charset $3800
-        sta $d018
-        lda $d016
-        ora #$10            ; multicolour text mode
-        sta $d016
+        jsr $ff90           ; SETMSG 0: no KERNAL "searching / loading" text
+        jsr video_init      ; hires bitmap mode, blank layers
         jsr sprites_init
         jsr new_game
-        jsr clear_screen
         jsr draw_frame
         jsr draw_panel
         jsr draw_party
@@ -246,8 +281,9 @@ main
 
 ; wait for a key; stir the raster position into the RNG (real hardware)
 getkey
-        jsr GETIN
-        beq getkey
+        jsr present
+-       jsr GETIN
+        beq -
         pha
         lda $d012
         eor seed
@@ -368,6 +404,7 @@ rnd_n
 ; about 2/3 of a second
 !zone pause
 pause
+        jsr present
         lda #2
         sta pcount
         ldx #0
@@ -383,73 +420,38 @@ pause
 ; =====================================================================
 ;  Screen helpers
 ; =====================================================================
-!zone clear_screen
-clear_screen
-        ldx #0
-.l      lda #32
-        sta SCREEN,x
-        sta SCREEN+$100,x
-        sta SCREEN+$200,x
-        sta SCREEN+$2e8,x
-        lda #TEXTCOL
-        sta COLRAM,x
-        sta COLRAM+$100,x
-        sta COLRAM+$200,x
-        sta COLRAM+$2e8,x
-        inx
-        bne .l
-        rts
-
 !zone draw_frame
 draw_frame
-        ldx #21
+        ldx #28             ; map/dungeon window: cells 0-29 x 0-19
 .h      lda #CH_HLINE
-        sta SCREEN+1,x
-        sta SCREEN+19*40+1,x
-        lda #FRAMECOL
-        sta COLRAM+1,x
-        sta COLRAM+19*40+1,x
+        sta VSCR,x
+        sta VSCR+19*40,x
         dex
-        bpl .h
+        bne .h
         ldx #1
 .v      lda scr_lo,x
         sta dst
-        sta cdst
         lda scr_hi,x
         sta dst+1
-        clc
-        adc #$d4
-        sta cdst+1
         lda #CH_VLINE
         ldy #0
         sta (dst),y
-        ldy #23
+        ldy #29
         sta (dst),y
-        lda #FRAMECOL
-        sta (cdst),y
-        ldy #0
-        sta (cdst),y
         inx
         cpx #19
         bne .v
         lda #CH_TL
-        sta SCREEN
+        sta VSCR
         lda #CH_TR
-        sta SCREEN+23
+        sta VSCR+29
         lda #CH_BL
-        sta SCREEN+19*40
+        sta VSCR+19*40
         lda #CH_BR
-        sta SCREEN+19*40+23
-        lda #FRAMECOL
-        sta COLRAM
-        sta COLRAM+23
-        sta COLRAM+19*40
-        sta COLRAM+19*40+23
-        ldx #15
+        sta VSCR+19*40+29
+        ldx #9              ; rule under the title
 .u      lda #CH_HLINE
-        sta SCREEN+2*40+PC,x
-        lda #FRAMECOL
-        sta COLRAM+2*40+PC,x
+        sta VSCR+2*40+30,x
         dex
         bpl .u
         rts
@@ -506,10 +508,12 @@ draw_party
         ldx #PC+11
         jsr print_at
         jmp .lv
-.hassp  jsr .row
+.hassp  lda #2
+        sta ndig
+        jsr .row
         lda sp,x
         ldx #PC+11
-        jsr print_num2
+        jsr pu8
 .lv     lda #2
         sta ndig
         ldx dpc
@@ -543,19 +547,21 @@ print_gold
         ldy #9
         jmp print_u
 
-; set dst/cdst to screen position X=col, Y=row
+; text cursor: dst/cdst = text layer position X (0-79), Y (0-24); marks the row for redraw
 set_cursor
         txa
         clc
-        adc scr_lo,y
+        adc tx_lo,y
         sta dst
         sta cdst
-        lda scr_hi,y
+        lda tx_hi,y
         adc #0
         sta dst+1
         clc
-        adc #$d4
+        adc #>(VTC-VTX)
         sta cdst+1
+        lda #1
+        sta tdirty,y
         rts
 
 ; print $ff-terminated screen-code string (str) at X,Y in textcol
@@ -652,27 +658,32 @@ print_u
 message
         sta str
         stx str+1
-        ldx #37
-.l      lda SCREEN+21*40+1,x
-        sta SCREEN+20*40+1,x
-        lda SCREEN+22*40+1,x
-        sta SCREEN+21*40+1,x
-        lda SCREEN+23*40+1,x
-        sta SCREEN+22*40+1,x
-        lda SCREEN+24*40+1,x
-        sta SCREEN+23*40+1,x
+        ldx #75
+.l      lda VTX+21*80+2,x
+        sta VTX+20*80+2,x
+        lda VTX+22*80+2,x
+        sta VTX+21*80+2,x
+        lda VTX+23*80+2,x
+        sta VTX+22*80+2,x
+        lda VTX+24*80+2,x
+        sta VTX+23*80+2,x
         lda #32
-        sta SCREEN+24*40+1,x
-        lda #TEXTCOL
-        sta COLRAM+20*40+1,x
-        sta COLRAM+21*40+1,x
-        sta COLRAM+22*40+1,x
-        sta COLRAM+23*40+1,x
+        sta VTX+24*80+2,x
+        lda #TEXTCOL        ; older lines turn white
+        sta VTC+20*80+2,x
+        sta VTC+21*80+2,x
+        sta VTC+22*80+2,x
+        sta VTC+23*80+2,x
         dex
         bpl .l
+        lda #1
+        sta tdirty+20
+        sta tdirty+21
+        sta tdirty+22
+        sta tdirty+23
         lda #TITLECOL
         sta textcol
-        ldx #1
+        ldx #2
         ldy #24
         jmp print_at
 
@@ -791,11 +802,6 @@ cmsg
         jsr mb_end
         jmp pause
 
-; wait until the raster is in the lower border (line >= 256)
-wait_vb
--       bit $d011
-        bpl -
-        rts
 
 ; =====================================================================
 ;  OVERWORLD (and town walking, mode 2)
@@ -900,46 +906,104 @@ get_tile
         lda (src),y
         rts
 
-; 22 x 18 tiles, one character each; the party stands at view (11,9)
-VIEW_W = 22
+; 28 x 18 tiles, one cell each. Out in the wilds the party stays at view (14,9);
+; in a town the view stops at the town's edges so as much of it shows as possible.
+VIEW_W = 28
 VIEW_H = 18
-PLAYER_VX = 11
+PLAYER_VX = 14
 PLAYER_VY = 9
 !zone ow_draw
 ow_draw
-        lda #0
-        sta ry
-.row    ldx #1              ; dst/cdst = start of screen row 1+ry, column 1
-        ldy ry
-        iny
-        jsr set_cursor
-        lda py
-        clc
-        adc ry
-        sec
-        sbc #PLAYER_VY
-        sta ty
-        lda #0
-        sta rx
-.col    lda px
-        clc
-        adc rx
+        lda px              ; view origin
         sec
         sbc #PLAYER_VX
-        sta tx
-        jsr get_tile
-        ldy rx
-        cpy #PLAYER_VX
-        bne +
+        sta ox
+        lda py
+        sec
+        sbc #PLAYER_VY
+        sta oy
+        lda mode
+        cmp #2
+        bne .origin
+        lda ox              ; town: clamp to 0 .. 32-VIEW_W
+        bpl +
+        lda #0
++       cmp #32-VIEW_W+1
+        bcc +
+        lda #32-VIEW_W
++       sta ox
+        lda oy              ; and 0 .. TOWN_H-VIEW_H
+        bpl +
+        lda #0
++       cmp #TOWN_H-VIEW_H+1
+        bcc +
+        lda #TOWN_H-VIEW_H
++       sta oy
+.origin lda px              ; where the party appears in the view
+        sec
+        sbc ox
+        sta pvx
+        lda py
+        sec
+        sbc oy
+        sta pvy
+        lda #T_WATER        ; beyond the edge: ocean in the wilds, grass round a town
+        ldx mode
+        beq +
+        lda #T_GRASS
++       sta offmap
+        lda #0
+        sta ry
+.row    ldx ry              ; dst = graphics layer, row 1+ry, column 1
+        inx
+        lda scr_lo,x
+        clc
+        adc #1
+        sta dst
+        lda scr_hi,x
+        adc #0
+        sta dst+1
+        lda oy              ; src = this map row, or nothing if off the map
+        clc
+        adc ry
+        sta ty
+        jsr map_row
+        lda #0
+        sta rx
+.col    lda ox
+        clc
+        adc rx
+        tay
+        lda offmap
+        cpy mwidth
+        bcs .got
+        ldx src+1
+        beq .got
+        lda (src),y
+.got    ldy rx
+        cpy pvx
+        bne .put
         ldx ry
-        cpx #PLAYER_VY
-        bne +
-        lda #T_PLAYER
-+       tax
+        cpx pvy
+        bne .put
+        cmp under           ; new ground under the party: redraw that cell
+        beq +
+        sta under
+        tya
+        clc
+        adc dst             ; PG address of this cell = dst + (PG - VSCR)
+        sta gp
+        lda dst+1
+        adc #>(PG-VSCR)
+        sta gp+1
+        ldy #0
+        lda #$fe
+        sta (gp),y
+        ldy rx
++       lda #T_PLAYER
+.put    tax
         lda tile_char,x
         sta (dst),y
-        lda tile_color,x
-        sta (cdst),y
         inc rx
         lda rx
         cmp #VIEW_W
@@ -948,6 +1012,55 @@ ow_draw
         lda ry
         cmp #VIEW_H
         bne .row
+        rts
+
+; src = start of map row ty (overworld or town); src+1 = 0 if the row is off the map.
+; mwidth = row length
+map_row
+        lda mode
+        cmp #2
+        beq .town
+        lda #64
+        sta mwidth
+        lda ty
+        cmp #64
+        bcs .none
+        lsr
+        lsr
+        clc
+        adc #>OWMAP
+        sta src+1
+        lda ty
+        asl
+        asl
+        asl
+        asl
+        asl
+        asl
+        sta src
+        rts
+.town   lda #32
+        sta mwidth
+        lda ty
+        cmp #TOWN_H
+        bcs .none
+        lsr
+        lsr
+        lsr
+        ldx town
+        clc
+        adc town_page,x
+        sta src+1
+        lda ty
+        asl
+        asl
+        asl
+        asl
+        asl
+        sta src
+        rts
+.none   lda #0
+        sta src+1
         rts
 
 ; place (dungeon or town) at (px,py) -> X = place index, N clear; N set if none
@@ -1277,19 +1390,25 @@ clear_view
         ldx #1
 .r      lda scr_lo,x
         sta dst
-        sta cdst
         lda scr_hi,x
         sta dst+1
-        clc
-        adc #$d4
-        sta cdst+1
-        ldy #22
-.c      lda #32
-        sta (dst),y
-        lda #0
-        sta (cdst),y
+        ldy #28
+        lda #EMPTY
+.g      sta (dst),y
         dey
-        bne .c
+        bne .g
+        lda tx_lo,x
+        sta dst
+        lda tx_hi,x
+        sta dst+1
+        ldy #57
+        lda #32
+.t      sta (dst),y
+        dey
+        cpy #1
+        bne .t
+        lda #1
+        sta tdirty,x
         inx
         cpx #19
         bne .r
@@ -1375,24 +1494,32 @@ clear_here
 ; ---------------------------------------------------------------------
 !zone dg_render
 dg_render
-        ldx #161
-.clr    lda #D_CEIL
-        sta BUF,x
+        ldx #0              ; ceiling over the top half, floor below
+.clr    lda scr_lo+VIEW3D_Y,x
+        clc
+        adc #VIEW3D_X
+        sta dst
+        lda scr_hi+VIEW3D_Y,x
+        adc #0
+        sta dst+1
+        lda #D_CEIL
+        cpx #WIN/2
+        bcc +
         lda #D_FLOOR
-        sta BUF+162,x
-        lda #8
-        sta CBUF,x
-        sta CBUF+162,x
-        dex
-        cpx #$ff
+        cpx #11             ; floor seams at each depth boundary
+        beq .ln
+        cpx #13
+        beq .ln
+        cpx #15
+        bne +
+.ln     lda #D_FLOORLN
++       ldy #WIN-1
+-       sta (dst),y
+        dey
+        bpl -
+        inx
+        cpx #WIN
         bne .clr
-        ldx #WIN-1          ; floor seams at each depth boundary
-.seam   lda #D_FLOORLN
-        sta BUF+15*WIN,x
-        sta BUF+13*WIN,x
-        sta BUF+11*WIN,x
-        dex
-        bpl .seam
 
         lda #0
         sta ecur
@@ -1433,91 +1560,28 @@ dg_render
         cmp #NUM_ELEM
         bne .e
 
-        ; copy 18x18 buffer to screen row 1, col 3
-        jsr wait_vb
-        lda #<BUF
-        sta src
-        lda #>BUF
-        sta src+1
-        lda #<CBUF
-        sta csrc
-        lda #>CBUF
-        sta csrc+1
-        lda #<(SCREEN+43)
-        sta dst
-        lda #>(SCREEN+43)
-        sta dst+1
-        lda #<(COLRAM+43)
-        sta cdst
-        lda #>(COLRAM+43)
-        sta cdst+1
-        ldx #WIN
-.b      ldy #WIN-1
-.bc     lda (src),y
-        sta (dst),y
-        lda (csrc),y
-        sta (cdst),y
-        dey
-        bpl .bc
-        lda src
-        clc
-        adc #WIN
-        sta src
-        bcc +
-        inc src+1
-+       lda csrc
-        clc
-        adc #WIN
-        sta csrc
-        bcc +
-        inc csrc+1
-+       lda dst
-        clc
-        adc #40
-        sta dst
-        bcc +
-        inc dst+1
-+       lda cdst
-        clc
-        adc #40
-        sta cdst
-        bcc +
-        inc cdst+1
-+       dex
-        bne .b
         rts
 
-; run list at (dl): lo,hi,len,char,colour ... terminated by hi = 0
+; run list at (dl): lo, hi, length, glyph ... terminated by hi = 0
 !zone drawlist
 drawlist
         ldy #0
 .n      lda (dl),y
         sta dst
-        sta cdst
         iny
         lda (dl),y
         beq .done
         sta dst+1
-        clc
-        adc #>(CBUF-BUF)
-        sta cdst+1
         iny
         lda (dl),y
         sta cnt
         iny
         lda (dl),y
-        sta ch
-        iny
-        lda (dl),y
-        sta col
         iny
         sty ysave
         ldy cnt
         dey
-.f      lda ch
-        sta (dst),y
-        lda col
-        sta (cdst),y
+.f      sta (dst),y
         dey
         bpl .f
         ldy ysave
@@ -1887,12 +1951,12 @@ input_word
         sta inlen
 .draw   lda inlen
         clc
-        adc #3
+        adc #4
         tax
         ldy #24
         jsr set_cursor
         ldy #0
-        lda #CH_SOLID
+        lda #'#'
         sta (dst),y
         lda #TITLECOL
         sta (cdst),y
@@ -1951,13 +2015,13 @@ show_monster
         asl
         clc
         adc #SPR_PTR
-        sta $07f8
+        sta MATRIX+$3f8
         adc #1
-        sta $07f9
+        sta MATRIX+$3f9
         adc #1
-        sta $07fa
+        sta MATRIX+$3fa
         adc #1
-        sta $07fb
+        sta MATRIX+$3fb
         lda mon_col,x
         sta $d027
         sta $d028
@@ -1979,12 +2043,12 @@ hide_monster
 ; =====================================================================
 ;  Tables
 ; =====================================================================
-scr_lo  !for r, 0, 24 { !byte <(SCREEN + r*40) }
-scr_hi  !for r, 0, 24 { !byte >(SCREEN + r*40) }
+scr_lo  !for r, 0, 24 { !byte <(VSCR + r*40) }
+scr_hi  !for r, 0, 24 { !byte >(VSCR + r*40) }
 pw_lo   !byte <10000, <1000, <100, <10, <1
 pw_hi   !byte >10000, >1000, >100, >10, >1
 bitmask !byte 1, 2, 4, 8, 16, 32, 64, 128
-spr_pos !byte 72,106, 120,106, 72,148, 120,148
+spr_pos !byte 96,106, 144,106, 96,148, 144,148
 
 dirname_lo !byte <s_n, <s_e, <s_s, <s_w
 dirname_hi !byte >s_n, >s_e, >s_s, >s_w
@@ -2006,6 +2070,8 @@ pnamep_lo !byte <s_np0, <s_np1, <s_np2, <s_np3
 pnamep_hi !byte >s_np0, >s_np1, >s_np2, >s_np3
 pclass_lo !byte <s_c0, <s_c1, <s_c2, <s_c3
 pclass_hi !byte >s_c0, >s_c1, >s_c2, >s_c3
+
+!source "render.asm"
 
 low_end
 !if low_end > SPRITES { !error "low code overruns sprite data" }
@@ -2029,11 +2095,15 @@ code_end
 !source "text.asm"
 !source "sheet.asm"
 mid_end
-!if mid_end > CHARSET { !error "text overruns the charset" }
-*= CHARSET
-        !binary "build/charset.bin"
+!if mid_end > GLYPHS { !error "text overruns the glyphs" }
+*= GLYPHS
+        !binary "build/glyphs.bin"
 *= OWMAP
         !binary "build/owmap.bin"
 *= $5000
         !binary "build/town0.bin"
         !binary "build/town1.bin"
+*= FONT4H
+        !binary "build/font4h.bin"
+*= FONT4L
+        !binary "build/font4l.bin"

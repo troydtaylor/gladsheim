@@ -54,6 +54,10 @@ town_bump
         bcc .wall
         cmp #T_SIGN_M+1
         bcc .sign
+        cmp #T_FOLK_IN      ; people standing on a wooden floor
+        beq .npc
+        cmp #T_FOLK2_IN
+        beq .npc
         cmp #T_GUARD
         bcc .wall
         cmp #T_FOLK2+1
@@ -176,7 +180,7 @@ shop_draw
         sta str+1
         lda #TITLECOL
         sta textcol
-        ldx #2
+        ldx #VX+2
         ldy #2
         jsr print_at
         ldx shop
@@ -186,10 +190,10 @@ shop_draw
         sta str+1
         lda #TEXTCOL
         sta textcol
-        ldx #2
+        ldx #VX+2
         ldy #3
         jsr print_at
-        +print 2,5,s_sh_head,HEADCOL
+        +print VX+2,5,s_sh_head,HEADCOL
         lda #0
         sta member          ; reused as the item row counter
 .item   lda shop
@@ -207,7 +211,7 @@ shop_draw
         adc #6
         sta n3row
         tay
-        ldx #2
+        ldx #VX+2
         jsr set_cursor
         lda member
         clc
@@ -223,7 +227,7 @@ shop_draw
         sta str+1
         lda #TEXTCOL
         sta textcol
-        ldx #4
+        ldx #VX+4
         ldy n3row
         jsr print_at
         ldx itidx
@@ -232,7 +236,7 @@ shop_draw
         ldy #2
         sty ndig
         ldy n3row
-        ldx #16
+        ldx #VX+16
         jsr pu8
 .nostat ldx itidx
         lda it_price_lo,x
@@ -241,7 +245,7 @@ shop_draw
         sta n16+1
         lda #5
         sta ndig
-        ldx #18
+        ldx #VX+18
         ldy n3row
         jsr print_u
 .next   inc member
@@ -249,9 +253,9 @@ shop_draw
         cmp #4
         beq +
         jmp .item
-+       +print 2,11,s_sh_party,HEADCOL
++       +print VX+2,11,s_sh_party,HEADCOL
         jsr shop_party
-        +print 2,17,s_sh_foot,HEADCOL
+        +print VX+2,17,s_sh_foot,HEADCOL
         rts
 
 ; party rows 12-15: number, name, level, weapon, armour, hp
@@ -269,7 +273,7 @@ shop_party
         adc #12
         sta n3row
         tay
-        ldx #2
+        ldx #VX+2
         jsr set_cursor
         ldy #0
         lda member
@@ -283,31 +287,31 @@ shop_party
         sta str
         lda pnamep_hi,x
         sta str+1
-        ldx #4
+        ldx #VX+4
         ldy n3row
         jsr print_at
         lda #2
         sta ndig
         ldx member
         lda lvl,x
-        ldx #11
+        ldx #VX+11
         ldy n3row
         jsr pu8
         ldx member
         lda wpn,x
-        ldx #14
+        ldx #VX+14
         ldy n3row
         jsr pu8
         ldx member
         lda arm,x
-        ldx #17
+        ldx #VX+17
         ldy n3row
         jsr pu8
         lda #3
         sta ndig
         ldx member
         lda hp,x
-        ldx #20
+        ldx #VX+20
         ldy n3row
         jsr pu8
         ldx member

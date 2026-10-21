@@ -1,7 +1,7 @@
 ; =====================================================================
 ;  SAVE / LOAD (overworld only)
-;  One file, "GLADSHEIM SAVE": $C400-$CFFF = every dungeon floor's state
-;  ($C400-$CEFF) followed by a copy of the game variables ($CF00).
+;  One file, "GLADSHEIM SAVE": $B400-$BFFF = every dungeon floor's state
+;  ($B400-$BEFF) followed by a copy of the game variables ($BF00).
 ;  The old save is scratched first; the drive's error channel is read
 ;  afterwards, so write-protect / disk-full errors are reported.
 ; =====================================================================
@@ -14,9 +14,9 @@ CLRCHN  = $ffcc
 CHRIN   = $ffcf
 LOAD    = $ffd5
 SAVE    = $ffd8
-SAVES   = $c400
-SAVEBUF = $cf00
-SAVEEND = $d000
+SAVES   = $b400
+SAVEBUF = $bf00
+SAVEEND = $c000
 DEVICE  = 8
 
 !zone save_game
@@ -50,7 +50,7 @@ save_game
         jsr OPEN
         lda #15
         jsr CLOSE
-        lda #save_len           ; SAVE "GLADSHEIM SAVE",8  $C400-$CFFF
+        lda #save_len           ; SAVE "GLADSHEIM SAVE",8  $B400-$BFFF
         ldx #<save_name
         ldy #>save_name
         jsr SETNAM
@@ -87,7 +87,7 @@ load_game
         jsr SETNAM
         lda #1
         ldx #DEVICE
-        ldy #1                  ; load to the file's own address ($C400)
+        ldy #1                  ; load to the file's own address ($B400)
         jsr SETLFS
         lda #0
         jsr LOAD

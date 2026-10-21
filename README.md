@@ -8,7 +8,7 @@ The world is **Gladsheim**, the realm of Norse myth where Valhalla stands. Four 
 the Einherjar Hall to win the five runestones that open Valhalla's Gate, where Nidhogg, the wyrm
 that gnaws at the World Tree, waits at the bottom.
 
-![Gladsheim: overworld, town, dungeon](docs/screenshot_world_v5.png)
+![Gladsheim in hires bitmap mode](docs/screenshots_bitmap.png)
 
 ## Run
 
@@ -54,7 +54,6 @@ If the whole party falls, it wakes in the Einherjar Hall with half its gold gone
 
 ## The world
 
-![Monsters](docs/screenshot_v4_monsters.png)
 
 | | Place | Danger | Puzzle | Boss |
 |---|---|---|---|---|
@@ -92,24 +91,36 @@ random seeds it finishes the game in 170–220 battles, typically with 0–2 par
 
 ## How it fits
 
-The overworld and towns are drawn one character per tile: a 22×18-tile view (each tile 8×8 pixels,
-four multicolour colours), with the party in the middle.
+**Hires bitmap mode.** The whole screen is a 320×200 bitmap with two colours (any of the 16) per
+8×8 cell, the way *Bard's Tale* and *Ultima IV* look on the C64. The game itself draws into two
+small in-memory layers, and a compositor (`render.asm`) turns only what changed into pixels each
+time the game waits for a key:
 
+- a **graphics layer**, 40×25 glyph codes: map tiles, dungeon wall pieces, the frame;
+- a **text layer**, 80×25 characters in a 3×7-pixel font, two letters per cell, used for the
+  side panel, messages, shops and the character sheet.
+
+The overworld and towns show 28×18 tiles of 8×8 pixels; in towns the view stops at the walls so the
+whole town fits. The 3D dungeon view is 18×18 cells with true one-pixel diagonals. An overworld step
+redraws in about 0.16 s, a dungeon step in about 0.1 s.
 
 | Range | Contents |
 |---|---|
-| `$0801–$1863` | engine core: overworld, towns' walking, 3D renderer, dungeon logic, screen I/O |
-| `$2000–$29FF` | 10 monster portraits (40 sprites) |
+| `$0400–$07E7` | graphics layer (glyph codes) |
+| `$0801–$1DFF` | engine core and compositor |
+| `$2000–$29FF` | monster portraits as loaded (copied to `$C400` at start) |
 | `$2A00–$36AE` | engine text, character sheet, ending |
-| `$3800–$3FFF` | charset: font, frame, 32 one-character terrain/town tiles, dungeon wall pieces |
+| `$3800–$3FFF` | 256 hires glyphs: frame, 35 terrain/town tiles, dungeon wall pieces |
 | `$4000–$4FFF` | 64×64 overworld |
 | `$5000–$57FF` | two 32×32 town maps |
-| `$5800–$58FF` | game state |
-| `$5A00–$5AFF` | current dungeon floor |
-| `$6000–$9BDC` | combat, towns, save/load, generated tables, 11 pristine floors, content text |
-| `$C000–$C3FF` | 3D view buffers |
-| `$C400–$CEFF` | saved state of every floor |
-| `$CF00–$CFFF` | copy of the game state, written to disk with the floors as `GLADSHEIM SAVE` |
+| `$5800–$58FF` | game state · `$5A00` current dungeon floor · `$5B00` row redraw flags |
+| `$5C00–$5FFF` | the small font |
+| `$6000–$9B5C` | combat, towns, save/load, generated tables, 11 pristine floors, content text |
+| `$A000–$B3CF` | last-presented graphics, text layer and its colours (RAM under BASIC) |
+| `$B400–$BFFF` | saved state of every floor + a copy of the game state = the `GLADSHEIM SAVE` file |
+| `$C000–$C3FF` | colour matrix (VIC bank 3) and sprite pointers |
+| `$C400–$CDFF` | monster portraits |
+| `$E000–$FF3F` | the bitmap (RAM under the KERNAL ROM) |
 
 **Content is data.** `content.py` holds every monster, floor, town, shop and line of dialogue;
 `gen.py` turns it into assembler tables and validates it: every floor is solvable (puzzle pieces
@@ -121,9 +132,10 @@ mazes with puzzle pieces placed under those rules.
 
 - `main.asm` — engine core · `combat.asm` — combat, experience, levels · `town.asm` — towns and shops
 - `sheet.asm` — character sheet and ending · `text.asm` — engine messages · `saveload.asm` — disk saves
+- `render.asm` — the bitmap compositor · `hires.py` — tile, wall and small-font art
 - `content.py` — the game's content · `art.py` — monster portraits · `gen.py` — data generator
 - `tools/sim.py` — 6502 + VIC-II renderer · `tools/playtest.py` — full-game bot
-- `tools/highlights.py` — video · `tools/d64.py`, `tools/tiles.py`, `tools/townview.py` — utilities
+- `tools/highlights.py` — video · `tools/mockup.py`, `tools/d64.py`, `tools/tiles.py`, `tools/townview.py` — utilities
 
 ## License
 
