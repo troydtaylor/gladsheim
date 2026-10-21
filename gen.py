@@ -116,159 +116,61 @@ put_hires(CH_BL,    ["..#.#...", "..#.#...", "..#.####", "..#.....", "..######",
 put_hires(CH_BR,    ["..#.#...", "..#.#...", "###.#...", "....#...", "#####...", "........", "........", "........"])
 put_hires(CH_SOLID, ["########"] * 8)
 
-# ---------------------------------------------------------------- overworld tiles (multicolor 2x2 chars)
+# ---------------------------------------------------------------- overworld + town tiles (one multicolour char each)
+# Each tile is one character: 4 fat pixels x 8 rows (fat pixels are 2 screen pixels wide, so
+# a tile is a square 8x8 on screen).  Order matters: maps store tile numbers.
 # fat-pixel legend: '.'=bg black  b=$D022 brown  w=$D023 light grey  c=colour RAM (per tile, 0-7)
 TILE_BASE = 72
-TILES = []  # (name, colorram 0-7, passable, 16 rows of 8 fat px)
+TILES = []  # (name, colorram 0-7, passable, 8 rows of 4 fat px)
 
 def tile(name, color, passable, rows):
-    assert len(rows) == 16 and all(len(r) == 8 for r in rows), name
+    assert len(rows) == 8 and all(len(r) == 4 for r in rows), name
     TILES.append((name, color, passable, rows))
 
-tile("GRASS", 5, True, [
- "cccccccc","ccccc.cc","cccc.c.c","cccccccc",
- "c.cccccc",".c.ccccc","cccccccc","cccccccc",
- "cccccccc","cccccc.c","ccccc.c.","cccccccc",
- "cc.ccccc","c.c.cccc","cccccccc","cccccccc"])
-tile("WATER", 6, False, [
- "cccccccc","cccccccc","cwwccccc","wccwcccc",
- "cccccccc","cccccccc","cccccccc","cccccccc",
- "cccccccc","cccccccc","ccccwwcc","cccwccwc",
- "cccccccc","cccccccc","cccccccc","cccccccc"])
-tile("FOREST", 5, True, [
- ".cc..cc.","cccccccc","cccccccc","cccccccc",
- ".cc..cc.","..b...b.","..b...b.","........",
- "c..cc..c","cccccccc","cccccccc","cccccccc",
- "c..cc..c","b...b...","b...b...","........"])
-tile("MOUNTAIN", 5, False, [
- "cccwwccc","cccwbccc","ccwwbbcc","ccwbb.cc",
- "ccbbb.cc","cwbbbb.c","cbbbb..c","cbbbbb.c",
- "cbbb.b.c","wbbbbb..","bbbbbbb.","bbb.bb..",
- "bbbbbbb.","bbbbbb..","cccccccc","cccccccc"])
-tile("TOWN", 2, True, [
- ".cc.....","cccc....","wwww.cc.","wbwwcccc",
- "wbwwwwww","....wwbw","....wwbw","........",
- "..cc....",".cccc...",".wwww...",".wwbw.b.",
- ".wwbw.bb","........","........","........"])
-tile("CASTLE", 7, True, [
- "c......c","w..cc..w","w..ww..w","ww.ww.ww",
- "wwwwwwww","w.wwww.w","wwwwwwww","wwwwwwww",
- "w.wwww.w","wwwwwwww","wwwbbwww","wwbbbbww",
- "wwbbbbww","wwbbbbww","........","........"])
-tile("DUNGEON", 5, True, [
- "cccccccc","cccbbccc","ccbbbbcc","cbbbbbbc",
- "cbbwwbbc","bbw..wbb","bw....wb","bw....wb",
- "bw....wb","bw....wb","bw....wb","bw....wb",
- "cw....wc","cw....wc","cccccccc","cccccccc"])
-tile("PLAYER", 3, True, [
- "........","...ww...","..wwww..","...ww...",
- "..cccc..",".cccccc.","c.cccc.c","w.cccc.w",
- "..cccc..","..cccc..","..c..c..","..c..c..",
- "..b..b..",".bb..bb.","........","........"])
-tile("ROAD", 5, True, [
- "ccbbbbcc","cbbbbbbc","cbbwbbbc","bbbbbbbb",
- "bbbbbwbb","cbbbbbbc","cbwbbbbc","bbbbbbbb",
- "bbbbbbbb","cbbbbwbc","cbbbbbbc","bbwbbbbb",
- "bbbbbbbb","cbbbbbwc","cbbbbbbc","ccbbbbcc"])
-tile("BRIDGE", 6, True, [
- "cccccccc","wwwwwwww","bbbbbbbb","b.bb.bb.",
- "bbbbbbbb","bb.bb.bb","bbbbbbbb","b.bb.bb.",
- "bbbbbbbb","bb.bb.bb","bbbbbbbb","b.bb.bb.",
- "bbbbbbbb","wwwwwwww","cccccccc","cccccccc"])
-
-# ---- town tiles (Thornbury) -------------------------------------------------
-def x2(rows8):
-    return rows8 + rows8
-
-WALL8 = ["wwww.www", "wwww.www", "wwww.www", "........", "ww.wwwww", "ww.wwwww", "ww.wwwww", "........"]
-tile("COBBLE", 0, True, x2(["........", ".b......", "......b.", "...w....",
-                             "........", "b....b..", "........", "....b..w"]))
-tile("WALL", 0, False, x2(WALL8))
-tile("FLOOR", 0, True, x2(["bbbbbbbb", "bbb.bbbb", "bbbbbbbb", "........",
-                            "bbbbbbbb", "bbbbbbb.", "bbbbbbbb", "........"]))
-tile("DOOR", 7, True, [
- "wwwwwwww", "wbbbbbbw", "wb.bb.bw", "wb.bb.bw", "wbbbbbbw", "wb.bb.bw", "wb.bb.bw", "wbbbbbbw",
- "wbbbbcbw", "wb.bb.bw", "wb.bb.bw", "wbbbbbbw", "wb.bb.bw", "wb.bb.bw", "wbbbbbbw", "wbbbbbbw"])
-tile("COUNTER", 2, False, [
- "bbbbbbbb", "bbbbbbbb", "........", "wwwwwwww", "wwwwwwww", "cccccccc", "c.cc.cc.", "c.cc.cc.",
- "c.cc.cc.", "c.cc.cc.", "cccccccc", "cccccccc", "........", "bbbbbbbb", "bbbbbbbb", "........"])
-
-def sign(name, col, icon):
-    rows = [list(r) for r in x2(WALL8)]
-    for r in range(2, 14):
-        for c in range(1, 7):
-            rows[r][c] = 'b'
-    for r, line in enumerate(icon):
-        for c, ch in enumerate(line):
-            if ch != '.':
-                rows[4 + r][2 + c] = ch
-    tile(name, col, False, ["".join(r) for r in rows])
-
-sign("SIGN_W", 7, [".w..", ".w..", ".w..", ".w..", ".w..", "ccc.", ".c..", ".c.."])   # sword
-sign("SIGN_A", 6, ["cccc", "cwwc", "cwwc", "cccc", "cccc", ".cc.", ".cc.", "...."])   # shield
-sign("SIGN_P", 1, [".cc.", "c..c", "c..c", ".cc.", "cccc", ".cc.", ".cc.", ".cc."])   # ankh
-sign("SIGN_T", 7, ["www.", "ccc.", "cccw", "ccc.", "cccw", "ccc.", "ccc.", "...."])   # tankard
-sign("SIGN_M", 4, ["....", ".cc.", "cwcc", "cccc", "cccc", ".cc.", "wwww", "...."])   # crystal ball
-
-def figure(name, col, hair='w', dress=False, spear=False):
-    rows = [list(r) for r in [
-     "........", "...ww...", "..wwww..", "...ww...", "..cccc..", ".cccccc.", "c.cccc.c", "w.cccc.w",
-     "..cccc..", "..cccc..", "..c..c..", "..c..c..", "..b..b..", ".bb..bb.", "........", "........"]]
-    for r in (1, 2):
-        rows[r] = [hair if ch == 'w' else ch for ch in rows[r]]
-    if dress:
-        rows[9], rows[10], rows[11] = list(".cccccc."), list(".cccccc."), list("cccccccc")
-    if spear:
-        rows[0][7] = rows[1][7] = 'w'
-        for r in range(2, 14):
-            if rows[r][7] == '.':
-                rows[r][7] = 'b'
-    tile(name, col, False, ["".join(r) for r in rows])
-
-figure("GUARD", 6, spear=True)
-figure("FOLK", 4, hair='b')
-figure("FOLK2", 5, hair='w', dress=True)
-figure("MERCHANT", 7, hair='b')
-tile("FOUNTAIN", 6, False, [
- "........", "...cc...", "..c..c..", "...ww...", "...ww...", "..cwwc..", ".c.ww.c.", "c..ww..c",
- "wwwwwwww", "wccccccw", "wccccccw", "wccccccw", "wwwwwwww", ".w....w.", "........", "........"])
-tile("TABLE", 2, False, [
- "bbbbbbbb", "bbb.bbbb", "bbbbbbbb", "........", "bb....bb", "b.cccc.b", ".ccccwc.", ".cccccc.",
- "b.cccc.b", "bb.bb.bb", "bb.bb.bb", "........", "bbbbbbbb", "bbbbbbb.", "bbbbbbbb", "........"])
-tile("ALTAR", 7, False, [
- "........", "c......c", "w......w", "w......w", "wwwwwwww", "wccccccw", "wcwwwwcw", "wcwccwcw",
- "wcwwwwcw", "wccccccw", "wwwwwwww", ".w....w.", ".w....w.", ".ww..ww.", "........", "........"])
-tile("BED", 2, False, [
- "bbbbbbbb", "b......b", "b.wwww.b", "b.wwww.b", "bccccccb", "bccccccb", "bcwccccb", "bccccccb",
- "bccccccb", "bccccwcb", "bccccccb", "bccccccb", "bbbbbbbb", "b......b", "b......b", "........"])
-tile("BARREL", 0, False, [
- "........", "..bbbb..", ".bbbbbb.", ".wwwwww.", ".bbbbbb.", ".bbbbbb.", ".bbbbbb.", ".wwwwww.",
- ".bbbbbb.", ".bbbbbb.", ".bbbbbb.", ".wwwwww.", ".bbbbbb.", "..bbbb..", "........", "........"])
-
-# ---- regional terrain (appended so existing tile numbers stay put) ----------
-tile("SNOW", 1, True, x2(["wwwwwwww", "wcwwwwww", "wwwwwwcw", "wwwwwwww",
-                          "wwwcwwww", "wwwwwwww", "cwwwwwcw", "wwwwwwww"]))
-tile("ASH", 2, True, x2(["........", ".b......", "....c...", "......b.",
-                         "..b.....", "........", ".....b..", "c......."]))
-_dead = ["b..b", ".bb.", "..b.", "b.b.", ".bb.", "..b.", "..b.", ".bbb"]
-tile("DEADWOOD", 2, True, [a + a for a in _dead] + [a[2:] + a + a[:2] for a in _dead])
+tile("GRASS",    5, True,  ["cccc", "c.cc", "cccc", "ccc.", "cccc", ".ccc", "cccc", "cc.c"])
+tile("WATER",    6, False, ["cccc", "wwcc", "cccc", "cccc", "cccc", "ccww", "cccc", "cccc"])
+tile("FOREST",   5, True,  [".cc.", "cccc", "cccc", "cccc", ".cc.", ".bb.", ".bb.", "...."])
+tile("MOUNTAIN", 5, False, ["cwcc", "wwbc", "wbbc", "wbbb", "bbbb", "bbb.", "bbbb", "cccc"])
+tile("TOWN",     2, True,  [".cc.", "cccc", "cccc", "wwww", "wbww", "wbww", "wwww", "...."])
+tile("CASTLE",   7, True,  ["c..c", "w..w", "wwww", "w.w.", "wwww", "wbbw", "wbbw", "...."])
+tile("DUNGEON",  5, True,  ["cbbc", "bbbb", "bwwb", "w..w", "w..w", "w..w", "w..w", "cccc"])
+tile("PLAYER",   3, True,  [".ww.", ".ww.", "cccc", "cccc", ".cc.", "c..c", "b..b", "...."])
+tile("ROAD",     5, True,  ["bbbb", "bwbb", "bbbb", "bbbb", "bbwb", "bbbb", "wbbb", "bbbb"])
+tile("BRIDGE",   6, True,  ["cccc", "wwww", "bbbb", "b.bb", "bbbb", "bb.b", "wwww", "cccc"])
+# ---- towns -------------------------------------------------------------------
+tile("COBBLE",   0, True,  ["....", ".b..", "...w", "....", "..b.", "....", "w...", "...."])
+tile("WALL",     0, False, ["ww.w", "ww.w", "ww.w", "....", "w.ww", "w.ww", "w.ww", "...."])
+tile("FLOOR",    0, True,  ["bbbb", "bb.b", "bbbb", "....", "b.bb", "bbbb", "bbbb", "...."])
+tile("DOOR",     7, True,  ["wwww", "wbbw", "wbbw", "wbbw", "wbcw", "wbbw", "wbbw", "wbbw"])
+tile("COUNTER",  2, False, ["bbbb", "bbbb", "wwww", "cccc", "c.c.", "cccc", "....", "...."])
+tile("SIGN_W",   7, False, ["ww.w", "bbwb", "bbwb", "bbwb", "bccc", "bbcb", "bbbb", "...."])   # sword
+tile("SIGN_A",   6, False, ["ww.w", "bccb", "cwwc", "cwwc", "bccb", "bccb", "bbbb", "...."])   # shield
+tile("SIGN_P",   1, False, ["ww.w", "bccb", "cbbc", "bccb", "cccc", "bccb", "bccb", "...."])   # ankh
+tile("SIGN_T",   7, False, ["ww.w", "wwwb", "cccb", "cccw", "cccb", "cccb", "bbbb", "...."])   # tankard
+tile("SIGN_M",   4, False, ["ww.w", "bccb", "cwcc", "cccc", "bccb", "wwww", "bbbb", "...."])   # crystal ball
+tile("GUARD",    6, False, ["...w", ".wwb", ".wwb", "cccb", ".ccb", "c.cb", "b.b.", "...."])
+tile("FOLK",     4, False, [".bb.", ".ww.", "cccc", "cccc", ".cc.", "c..c", "b..b", "...."])
+tile("FOLK2",    5, False, [".ww.", ".ww.", ".cc.", "cccc", "cccc", "cccc", "b..b", "...."])
+tile("MERCHANT", 7, False, [".bb.", ".ww.", "cccc", "cccc", "cccc", ".cc.", "b..b", "...."])
+tile("FOUNTAIN", 6, False, [".cc.", "c..c", ".ww.", "wwww", "wccw", "wccw", "wwww", "...."])
+tile("TABLE",    2, False, ["....", "bbbb", "bcwb", "bbbb", "b..b", "b..b", "....", "...."])
+tile("ALTAR",    7, False, ["c..c", "w..w", "wwww", "wccw", "wccw", "wwww", "w..w", "...."])
+tile("BED",      2, False, ["bbbb", "bwwb", "bccb", "bccb", "bccb", "bccb", "bbbb", "b..b"])
+tile("BARREL",   0, False, [".bb.", "bbbb", "wwww", "bbbb", "bbbb", "wwww", "bbbb", ".bb."])
+# ---- regional terrain ----------------------------------------------------------
+tile("SNOW",     1, True,  ["wwww", "wcww", "wwww", "wwwc", "wwww", "cwww", "wwww", "wwcw"])
+tile("ASH",      2, True,  ["....", ".b..", "...c", "....", "b...", "....", "..b.", "c..."])
+tile("DEADWOOD", 2, True,  ["b..b", ".bb.", "..b.", "b.b.", ".bb.", "..b.", "..b.", ".bbb"])
 
 T = {name: i for i, (name, _, _, _) in enumerate(TILES)}
 MCODE = {'.': '0', 'b': '1', 'w': '2', 'c': '3'}
 
 def tile_base(t):
-    """chars 72-127 hold the first 14 tiles, the rest go above the dungeon chars at 144+"""
-    return TILE_BASE + t * 4 if t < 14 else 144 + (t - 14) * 4
+    return TILE_BASE + t
 
 for t, (name, col, passable, rows) in enumerate(TILES):
-    rows = ["".join(MCODE[c] for c in r) for r in rows]
-    assert len(rows) == 16 and all(len(r) == 8 for r in rows), name
-    base = tile_base(t)
-    put_mc(base + 0, [r[:4] for r in rows[:8]])
-    put_mc(base + 1, [r[4:] for r in rows[:8]])
-    put_mc(base + 2, [r[:4] for r in rows[8:]])
-    put_mc(base + 3, [r[4:] for r in rows[8:]])
-assert tile_base(len(TILES) - 1) + 3 <= 255
+    put_mc(tile_base(t), ["".join(MCODE[c] for c in r) for r in rows])
+assert tile_base(len(TILES) - 1) < 128          # 128+ holds the dungeon wall pieces
 
 # ---------------------------------------------------------------- dungeon chars (multicolor)
 # dungeon palette: bg black = ceiling, $D022 dark grey = floor/mortar,

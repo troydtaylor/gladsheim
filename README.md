@@ -1,25 +1,29 @@
-# Vaults of Kesh — C64 RPG (v4)
+# Gladsheim — a C64 RPG
 
 An Ultima II–style overworld and towns with Bard's Tale–style first-person dungeons for the
 Commodore 64. Party of four, experience levels 1–20, six dungeons on eleven floors, two towns with
-shops, a puzzle in every dungeon, and a final boss behind five sigils. Keyboard only.
+shops, a puzzle in every dungeon, and a final boss behind five runestones. Keyboard only.
 
-![Overworld regions](docs/screenshot_v4_world.png)
+The world is **Gladsheim**, the realm of Norse myth where Valhalla stands. Four heroes set out from
+the Einherjar Hall to win the five runestones that open Valhalla's Gate, where Nidhogg, the wyrm
+that gnaws at the World Tree, waits at the bottom.
+
+![Gladsheim: overworld, town, dungeon](docs/screenshot_world_v5.png)
 
 ## Run
 
-Prebuilt images are in `dist/` (`vaults_of_kesh.d64`, `vaults_of_kesh.prg`); `./build.sh` makes fresh ones in `build/`.
+Prebuilt images are in `dist/` (`gladsheim.d64`, `gladsheim.prg`); `./build.sh` makes fresh ones in `build/`.
 
-- **VICE:** `x64sc -autostart dist/vaults_of_kesh.d64`
-- **Real hardware / SD2IEC / Ultimate:** `LOAD"VAULTS OF KESH",8` then `RUN`
+- **VICE:** `x64sc -autostart dist/gladsheim.d64`
+- **Real hardware / SD2IEC / Ultimate:** `LOAD"GLADSHEIM",8` then `RUN`
 
 The game is crunched with Exomizer: 58 blocks instead of 149, so it loads in well under half the
 time on a stock 1541; it unpacks itself in about four seconds.
 
 ## Saving
 
-Out on the overworld, **V** saves and **L** loads. The game writes one file, `KESH SAVE`, to the
-disk in drive 8 (replacing the old one): the party, gold, sigils, keys and the state of every
+Out on the overworld, **V** saves and **L** loads. The game writes one file, `GLADSHEIM SAVE`, to the
+disk in drive 8 (replacing the old one): the party, gold, runestones, keys and the state of every
 dungeon floor. Use a writable copy of the disk image. Write-protect and disk errors are reported.
 
 ## Controls
@@ -45,8 +49,8 @@ dungeon floor. Use a writable copy of the disk image. Write-protect and disk err
 
 Every survivor of a fight earns its full experience. Weapon hits do 1–weapon + might, minus the
 monster's armour; hit chance improves with level. Armour subtracts from every blow you take.
-If the whole party falls, it wakes at the Keep of Kesh with half its gold gone — dungeon progress
-(doors opened, bosses slain, sigils) is kept.
+If the whole party falls, it wakes in the Einherjar Hall with half its gold gone — dungeon progress
+(doors opened, bosses slain, runestones) is kept.
 
 ## The world
 
@@ -59,12 +63,12 @@ If the whole party falls, it wakes at the Keep of Kesh with half its gold gone �
 | 3 | Webwood Caves (2 floors) | 3 | find the key on the floor above the locked lair | Spider Queen |
 | 4 | Frozen Deep (2 floors) | 4 | an illusory wall; light four rune plates | Frost Troll |
 | 5 | Obsidian Keep (2 floors) | 5 | iron, bone, gold levers; name the first flame | Death Knight |
-| 6 | Vaults of Kesh (3 floors) | 6 | sealed by the five sigils; runes, illusions, a key | Kesh the Wyrm |
+| 6 | Valhalla's Gate (3 floors) | 6 | sealed by the five runestones; rune plates, illusions, a key | Nidhogg |
 
-Dungeons get harder the farther they are from the keep. Each boss guards a chest holding one of the
-five sigils. Clues are carved in the dungeons, rumoured in taverns, and told by townsfolk.
+Dungeons get harder the farther they are from the Einherjar Hall. Each boss guards a chest holding
+one of the five runestones. Clues are carved in the dungeons, rumoured in taverns, and told by townsfolk.
 
-**Thornbury** (beside the keep) sells starter gear; **Ravenmoor** (the eastern frontier, by the ash
+**Thornbury** (beside the Einherjar Hall) sells starter gear; **Ravenmoor** (the eastern frontier, by the ash
 lands) sells masterwork weapons and armour, higher tomes, and blessings (+max HP). Both have an inn
 (HP and SP), a temple (cure, raise dead), and a tavern full of rumours.
 
@@ -77,7 +81,7 @@ Needs Python 3 and [ACME](https://sourceforge.net/projects/acme-crossass/); [Exo
 to crunch the disk version (optional: without it `build.sh` puts the plain program on the disk);
 Pillow and ffmpeg for previews and video.
 
-    ./build.sh                               # gen.py -> acme -> exomizer -> build/kesh.d64
+    ./build.sh                               # gen.py -> acme -> exomizer -> build/gladsheim.d64
     python3 tools/playtest.py --seed 0x1234  # a bot plays the ENTIRE game, asserting state
     python3 tools/highlights.py out.mp4      # full playthrough as a highlight reel
 
@@ -88,20 +92,24 @@ random seeds it finishes the game in 170–220 battles, typically with 0–2 par
 
 ## How it fits
 
+The overworld and towns are drawn one character per tile: a 22×18-tile view (each tile 8×8 pixels,
+four multicolour colours), with the party in the middle.
+
+
 | Range | Contents |
 |---|---|
-| `$0801–$188D` | engine core: overworld, towns' walking, 3D renderer, dungeon logic, screen I/O |
+| `$0801–$1863` | engine core: overworld, towns' walking, 3D renderer, dungeon logic, screen I/O |
 | `$2000–$29FF` | 10 monster portraits (40 sprites) |
-| `$2A00–$368C` | engine text, character sheet, ending |
-| `$3800–$3FFF` | charset: font, frame, 32 terrain/town tiles, dungeon wall pieces |
+| `$2A00–$36AE` | engine text, character sheet, ending |
+| `$3800–$3FFF` | charset: font, frame, 32 one-character terrain/town tiles, dungeon wall pieces |
 | `$4000–$4FFF` | 64×64 overworld |
 | `$5000–$57FF` | two 32×32 town maps |
 | `$5800–$58FF` | game state |
 | `$5A00–$5AFF` | current dungeon floor |
-| `$6000–$9BBE` | combat, towns, save/load, generated tables, 11 pristine floors, content text |
+| `$6000–$9BDC` | combat, towns, save/load, generated tables, 11 pristine floors, content text |
 | `$C000–$C3FF` | 3D view buffers |
 | `$C400–$CEFF` | saved state of every floor |
-| `$CF00–$CFFF` | copy of the game state, written to disk with the floors as `KESH SAVE` |
+| `$CF00–$CFFF` | copy of the game state, written to disk with the floors as `GLADSHEIM SAVE` |
 
 **Content is data.** `content.py` holds every monster, floor, town, shop and line of dialogue;
 `gen.py` turns it into assembler tables and validates it: every floor is solvable (puzzle pieces

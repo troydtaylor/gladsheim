@@ -571,8 +571,8 @@ level_ups
         jmp .m
 +       rts
 
-; the party falls: wake at the keep, everyone alive but hurt, half the gold gone.
-; Dungeon progress (doors, bosses, sigils) is kept.
+; the party falls: wake at the einherjar hall, everyone alive but hurt, half the gold gone.
+; Dungeon progress (doors, bosses, runestones) is kept.
 defeat
         jsr hide_monster
         +msg m_fallen

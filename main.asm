@@ -1,5 +1,5 @@
 ; =====================================================================
-;  VAULTS OF KESH -- engine v4
+;  GLADSHEIM -- engine v4
 ;  Ultima II-style overworld and towns, Bard's Tale-style 3D dungeons,
 ;  sprite monster portraits, party combat with experience and levels,
 ;  shops, puzzles, and a world of six dungeons. Keyboard only.
@@ -111,7 +111,7 @@ lvl     = VARS+$98      ; 4: character level 1-20
 mgt     = VARS+$9c      ; 4: might (damage bonus from levels)
 xp_l    = VARS+$a0      ; 4
 xp_h    = VARS+$a4      ; 4
-sigils  = VARS+$a8      ; bit per sigil
+sigils  = VARS+$a8      ; bit per runestone
 keys    = VARS+$a9      ; bit per dungeon
 won     = VARS+$aa
 insheet = VARS+$ab
@@ -900,86 +900,54 @@ get_tile
         lda (src),y
         rts
 
-; 11 x 9 tiles, player in the middle
+; 22 x 18 tiles, one character each; the party stands at view (11,9)
+VIEW_W = 22
+VIEW_H = 18
+PLAYER_VX = 11
+PLAYER_VY = 9
 !zone ow_draw
 ow_draw
         lda #0
         sta ry
-.row    lda #0
+.row    ldx #1              ; dst/cdst = start of screen row 1+ry, column 1
+        ldy ry
+        iny
+        jsr set_cursor
+        lda py
+        clc
+        adc ry
+        sec
+        sbc #PLAYER_VY
+        sta ty
+        lda #0
         sta rx
 .col    lda px
         clc
         adc rx
         sec
-        sbc #5
+        sbc #PLAYER_VX
         sta tx
-        lda py
-        clc
-        adc ry
-        sec
-        sbc #4
-        sta ty
         jsr get_tile
-        ldx rx
-        cpx #5
+        ldy rx
+        cpy #PLAYER_VX
         bne +
         ldx ry
-        cpx #4
+        cpx #PLAYER_VY
         bne +
         lda #T_PLAYER
-+       jsr draw_tile
++       tax
+        lda tile_char,x
+        sta (dst),y
+        lda tile_color,x
+        sta (cdst),y
         inc rx
         lda rx
-        cmp #11
+        cmp #VIEW_W
         bne .col
         inc ry
         lda ry
-        cmp #9
+        cmp #VIEW_H
         bne .row
-        rts
-
-; draw tile A as 2x2 chars at viewport tile (rx,ry)
-draw_tile
-        tax
-        lda tile_char,x
-        sta ch
-        lda tile_color,x
-        sta col
-        lda ry
-        asl
-        tay
-        iny                 ; screen row = 1 + 2*ry
-        lda rx
-        asl
-        tax
-        inx                 ; screen col = 1 + 2*rx
-        jsr set_cursor
-        ldy #0
-        lda ch
-        sta (dst),y
-        lda col
-        sta (cdst),y
-        iny
-        lda ch
-        clc
-        adc #1
-        sta (dst),y
-        lda col
-        sta (cdst),y
-        ldy #40
-        lda ch
-        clc
-        adc #2
-        sta (dst),y
-        lda col
-        sta (cdst),y
-        iny
-        lda ch
-        clc
-        adc #3
-        sta (dst),y
-        lda col
-        sta (cdst),y
         rts
 
 ; place (dungeon or town) at (px,py) -> X = place index, N clear; N set if none
@@ -1189,7 +1157,7 @@ dg_colors
 dg_enter
         sta dungeon
         tax
-        lda dg_need,x       ; sealed by sigils?
+        lda dg_need,x       ; sealed by runestones?
         beq .open
         and sigils
         cmp dg_need,x

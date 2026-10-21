@@ -3,13 +3,13 @@
 ;  Panel strings are 16 wide so they overwrite what was there.
 ;  Game content text (places, floors, towns, monsters) is in build/gen.asm.
 ; =====================================================================
-s_title  !scr "vaults of kesh" : !byte $ff
+s_title  !scr "   gladsheim" : !byte $ff
 s_party  !scr "party   hp sp lv" : !byte $ff
 s_gold   !scr "gold" : !byte $ff
 s_loc    !scr "location        " : !byte $ff
 s_foes   !scr "foes            " : !byte $ff
 s_keys   !scr "keys" : !byte $ff
-s_wilds  !scr "the wilds       " : !byte $ff
+s_wilds  !scr "gladsheim       " : !byte $ff
 s_xy     !scr "x:   y:         " : !byte $ff
 s_facing !scr "facing          " : !byte $ff
 s_blank  !scr "                " : !byte $ff
@@ -89,9 +89,9 @@ s_cs_title !scr "the party" : !byte $ff
 s_cs_b     !scr "hp    /     sp   /" : !byte $ff
 s_cs_c     !scr "at     ar    xp" : !byte $ff
 s_lv       !scr "lv" : !byte $ff
-s_sig1     !scr "sigils:   of 5" : !byte $ff
+s_sig1     !scr "runestones:   of 5" : !byte $ff
 
-m_welcome1 !scr "welcome, adventurers of kesh!" : !byte $ff
+m_welcome1 !scr "welcome to gladsheim, heroes!" : !byte $ff
 m_welcome2 !scr "a crypt lies near. thornbury, east." : !byte $ff
 m_welcome3 !scr "c sheet  v save  l load saved game" : !byte $ff
 m_north    !scr "north" : !byte $ff
@@ -100,12 +100,12 @@ m_east     !scr "east" : !byte $ff
 m_west     !scr "west" : !byte $ff
 m_blocked  !scr "blocked!" : !byte $ff
 m_nothing  !scr "there is nothing to enter here." : !byte $ff
-m_castle   !scr "the keep of kesh." : !byte $ff
+m_castle   !scr "the einherjar hall." : !byte $ff
 m_healed   !scr "its healers tend the living." : !byte $ff
 m_allwell  !scr "nobody needs healing." : !byte $ff
 m_cantheal !scr "arden can't cast a heal now." : !byte $ff
-m_sealed1  !scr "a vast door, sealed by five sigils." : !byte $ff
-m_sealed2  !scr "you do not hold them all." : !byte $ff
+m_sealed1  !scr "a vast gate, sealed by five runes." : !byte $ff
+m_sealed2  !scr "you do not hold every runestone." : !byte $ff
 m_descend  !scr "you descend into the darkness..." : !byte $ff
 m_deeper   !scr "you descend deeper..." : !byte $ff
 m_climb    !scr "you climb the stairs." : !byte $ff
@@ -137,7 +137,7 @@ m_fled     !scr "the party flees!" : !byte $ff
 m_noflee   !scr "no escape!" : !byte $ff
 m_song     !scr "sela sings. the party is soothed." : !byte $ff
 m_fallen   !scr "the party has fallen..." : !byte $ff
-m_awaken   !scr "you awaken at the keep of kesh..." : !byte $ff
+m_awaken   !scr "you awaken in the einherjar hall..." : !byte $ff
 m_halfgold !scr "the healers took half your gold." : !byte $ff
 m_presskey !scr "(press any key)" : !byte $ff
 m_merch    !scr "'use the counter, friend.'" : !byte $ff

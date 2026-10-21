@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Automated full playthrough of build/proto.prg (Vaults of Kesh v4).
+Automated full playthrough of build/proto.prg (Gladsheim).
 
 The bot only presses keys. It reads emulated memory to see where it is and the
 dungeon floors, and content.py for puzzle answers -- like a player with the map
 and a walkthrough. It shops, rests, grinds when under-levelled, solves every
-dungeon and kills Kesh the Wyrm. Assertions check the game state along the way.
+dungeon and kills Nidhogg. Assertions check the game state along the way.
 
     python3 tools/playtest.py [--seed 0x1234] [--quiet]
 """
@@ -512,7 +512,7 @@ PLAN = [  # (dungeon, min party level to attempt, town to resupply at before, gr
 
 
 def run(b):
-    b.say("The party sets out from the Keep of Kesh", 20)
+    b.say("The party sets out from the Einherjar Hall", 20)
     b.report("start")
     for d, need, town, grind_in in PLAN:
         if town is not None:
@@ -524,11 +524,11 @@ def run(b):
         b.say(f"Into the {C.DUNGEONS[d][0].title()}", 14)
         b.run_dungeon(d)
         sig = bin(b.v("sigils")).count("1")
-        b.report(f"after {C.DUNGEONS[d][0]} ({sig} sigils)")
+        b.report(f"after {C.DUNGEONS[d][0]} ({sig} runestones)")
         if d < 5:
-            assert sig == d + 1, f"expected {d + 1} sigils, have {sig}"
-    assert b.v("won") == 1, "Kesh should be dead"
-    b.say("The Vaults of Kesh are conquered!", 30)
+            assert sig == d + 1, f"expected {d + 1} runestones, have {sig}"
+    assert b.v("won") == 1, "Nidhogg should be dead"
+    b.say("Nidhogg is slain. The gates of Valhalla open!", 30)
     return b
 
 

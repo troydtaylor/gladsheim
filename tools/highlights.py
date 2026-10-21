@@ -73,7 +73,7 @@ def on_frame(caption, tenths):
             speed = "meet"                       # a good look at each new monster
     bl = b.bottom()
     if not b.v("incombat") and any(w in bl for w in (
-            "REACHES LEVEL", "SIGIL", "DOOR OPENS", "GRINDS OPEN", "ILLUSION", "RUNE FLARES", "IRON KEY",
+            "REACHES LEVEL", "RUNESTONE", "DOOR OPENS", "GRINDS OPEN", "ILLUSION", "RUNE FLARES", "IRON KEY",
             "CLUNK", "CLANG", "WRONG", "PASS.'", "HEART", "REALM")):
         speed = "normal"
     if speed == "fast":
@@ -113,12 +113,12 @@ class Hooked(P.Bot):
     def run_dungeon(self, d):
         name = C.DUNGEONS[d][0].upper()
         sig = bin(self.v("sigils")).count("1")
-        card(f"DUNGEON {d + 1}: {name}", f"danger {d + 1}   party level {min(self.lvls())}", f"sigils held: {sig} of 5")
+        card(f"DUNGEON {d + 1}: {name}", f"danger {d + 1}   party level {min(self.lvls())}", f"runestones held: {sig} of 5")
         super().run_dungeon(d)
 
 bot = Hooked(on_frame=on_frame, seed=SEED, log=lambda *a: None)
 st["bot"] = bot
-card("VAULTS OF KESH", "a Commodore 64 RPG - full game highlights", "levels, six dungeons, two towns", n=35)
+card("GLADSHEIM", "a Commodore 64 RPG - full game highlights", "levels, six dungeons, two towns", n=35)
 st["speed"] = "normal"
 bot.c.key('C')
 on_frame("C  the character sheet", 30)

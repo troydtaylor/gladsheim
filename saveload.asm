@@ -1,6 +1,6 @@
 ; =====================================================================
 ;  SAVE / LOAD (overworld only)
-;  One file, "KESH SAVE": $C400-$CFFF = every dungeon floor's state
+;  One file, "GLADSHEIM SAVE": $C400-$CFFF = every dungeon floor's state
 ;  ($C400-$CEFF) followed by a copy of the game variables ($CF00).
 ;  The old save is scratched first; the drive's error channel is read
 ;  afterwards, so write-protect / disk-full errors are reported.
@@ -29,7 +29,7 @@ save_game
         sta savepx
         lda py
         sta savepy
-        lda #'k'
+        lda #'g'
         sta savemagic
         lda #'4'
         sta savemagic+1
@@ -39,7 +39,7 @@ save_game
         inx
         bne .cp
         +msg m_saving
-        lda #scratch_len        ; OPEN 15,8,15,"S0:KESH SAVE" : CLOSE 15
+        lda #scratch_len        ; OPEN 15,8,15,"S0:GLADSHEIM SAVE" : CLOSE 15
         ldx #<scratch_name
         ldy #>scratch_name
         jsr SETNAM
@@ -50,7 +50,7 @@ save_game
         jsr OPEN
         lda #15
         jsr CLOSE
-        lda #save_len           ; SAVE "KESH SAVE",8  $C400-$CFFF
+        lda #save_len           ; SAVE "GLADSHEIM SAVE",8  $C400-$CFFF
         ldx #<save_name
         ldy #>save_name
         jsr SETNAM
@@ -93,7 +93,7 @@ load_game
         jsr LOAD
         bcs .err
         lda SAVEBUF+(savemagic-VARS)
-        cmp #'k'
+        cmp #'g'
         bne .bad
         lda SAVEBUF+(savemagic-VARS)+1
         cmp #'4'
@@ -165,9 +165,9 @@ drive_ok
         sec
         rts
 
-scratch_name !pet "s0:kesh save"
+scratch_name !pet "s0:gladsheim save"
 scratch_len = * - scratch_name
-save_name    !pet "kesh save"
+save_name    !pet "gladsheim save"
 save_len = * - save_name
 
 m_saveow   !scr "save and load out in the wilds." : !byte $ff

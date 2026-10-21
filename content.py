@@ -1,5 +1,5 @@
 """
-Game content for Vaults of Kesh: monsters, dungeons and their floors, towns, shops, people.
+Game content for Gladsheim: monsters, dungeons and their floors, towns, shops, people.
 gen.py turns this into assembler tables (build/gen.asm) and binary maps.
 All text is upper/lower agnostic (rendered upper-case); keep lines within the noted widths.
 """
@@ -26,7 +26,7 @@ MONSTERS = [
  ("death knight",  "death knights", 250, 30, 195, 450,  650, "KNIGHT",    1,  0,  2, 1, "the ", 2, 10),
  ("lich",          "liches",        120, 28, 190,  55,  100, "MAGE",     13,  4,  1, 2, "a ",   1, 6),
  ("drake",         "drakes",        150, 32, 185,  65,  125, "DRAGON",    2,  8,  7, 2, "a ",   1, 8),
- ("kesh the wyrm", "wyrms",         255, 34, 195,   0, 3000, "DRAGON",    4,  6,  1, 1, "",     3, 12),
+ ("nidhogg",       "wyrms",           255, 34, 195,   0, 3000, "DRAGON",    4,  6,  1, 1, "",     3, 12),
 ]
 MON = {m[0]: i for i, m in enumerate(MONSTERS)}
 
@@ -192,20 +192,20 @@ def build_floor(seed, loops, protect=None, boss=None, down=False, secret_to_down
     raise RuntimeError(f"could not build floor seed {seed}")
 
 # each floor: name (<=16), dungeon, map, guards {letter: (monster, count)}, random encounter types (4),
-#             puzzle, riddle answer, door text (2 lines), inscription (2 lines), chest (gold, line1, line2, sigil bit, victory)
+#             puzzle, riddle answer, door text (2 lines), inscription (2 lines), chest (gold, line1, line2, runestone bit, victory)
 FLOORS = [
  dict(name="crypt of varn", dungeon=0, map=CRYPT,
       guards={'g': ("skeleton", 3), 'k': ("bone king", 1)},
       rnd=("skeleton", "slime", "skeleton", "slime"), puzzle=P_RIDDLE, answer="varn",
       door=("a magic mouth on the door speaks:", "'name the dead king, and pass.'"),
       insc=("words carved on a tomb:", "'here lies varn, the last bone king.'"),
-      chest=(100, "the crown of varn! +100 gold.", "a sigil glows: 1 of 5!", 0, 0)),
+      chest=(100, "the crown of varn! +100 gold.", "a runestone glows! 1 of 5.", 0, 0)),
  dict(name="sunken halls", dungeon=1, map=SUNKEN,
       guards={'o': ("orc", 2), 'c': ("orc chief", 1)},
       rnd=("orc", "slime", "goblin", "orc"), puzzle=P_LEVER,
       door=("a great iron door. it won't budge.", "three levers must hold the key..."),
       insc=("an inscription on the wall reads:", "'east, then west, the north last.'"),
-      chest=(200, "the sunken hoard! +200 gold.", "the second sigil is yours!", 1, 0)),
+      chest=(200, "the sunken hoard! +200 gold.", "the second runestone is yours!", 1, 0)),
 ]
 
 def floor(name, dungeon, seed, loops, rnd, guards, puzzle=P_NONE, answer="", door=("", ""),
@@ -227,7 +227,7 @@ floor("webwood caves 2", 2, 22, 8, ("giant spider", "giant spider", "goblin", "o
       items=['I'], puzzle=P_KEY,
       door=("a door sealed with web-crusted iron.", "it needs the key from the caves above."),
       insc=("scratched into the rock:", "'her lair is locked. the key, above.'"),
-      chest=(350, "spider silk and gold! +350 gold.", "the third sigil is yours!", 2, 0))
+      chest=(350, "spider silk and gold! +350 gold.", "the third runestone is yours!", 2, 0))
 # Frozen Deep (danger 4): an illusory wall hides the way down; rune plates open the troll's gate
 floor("frozen deep 1", 3, 31, 7, ("wraith", "troll", "giant spider", "wraith"),
       {'t': ("troll", 2), 'h': ("wraith", 3)}, down=True, secret_to_down=True, items=['I'],
@@ -237,7 +237,7 @@ floor("frozen deep 2", 3, 32, 4, ("troll", "wraith", "troll", "wraith"),
       items=['P', 'P', 'P', 'P', 'I'], puzzle=P_PLATES,
       door=("a gate of black ice, cold as death.", "four rune plates lie dark..."),
       insc=("old runes in the ice read:", "'light four runes to open the gate.'"),
-      chest=(600, "a hoard frozen in ice! +600 gold.", "the fourth sigil is yours!", 3, 0))
+      chest=(600, "a hoard frozen in ice! +600 gold.", "the fourth runestone is yours!", 3, 0))
 # Obsidian Keep (danger 5): iron, bone, gold levers; then speak the first flame's name
 floor("obsidian keep 1", 4, 41, 5, ("dark knight", "cultist", "troll", "cultist"),
       {'n': ("dark knight", 2), 'u': ("cultist", 3)}, protect='V', items=['1', '2', '3', 'I'],
@@ -249,29 +249,29 @@ floor("obsidian keep 2", 4, 42, 9, ("dark knight", "cultist", "wraith", "dark kn
       items=['I'], puzzle=P_RIDDLE, answer="ashara",
       door=("a door of living flame speaks:", "'name the first flame, and pass.'"),
       insc=("a charred inscription:", "'the sages of ravenmoor remember.'"),
-      chest=(1000, "the knight's tribute! +1000 gold.", "the fifth sigil is yours!", 4, 0))
-# Vaults of Kesh (danger 6): sealed by the five sigils
-floor("vaults of kesh 1", 5, 51, 5, ("lich", "drake", "dark knight", "lich"),
+      chest=(1000, "the knight's tribute! +1000 gold.", "the fifth runestone is yours!", 4, 0))
+# Valhalla's Gate (danger 6): sealed by the five runestones
+floor("valhalla gate 1", 5, 51, 5, ("lich", "drake", "dark knight", "lich"),
       {'l': ("lich", 2), 'r': ("drake", 1)}, protect='V', items=['P', 'P', 'P', 'I'], puzzle=P_PLATES,
       door=("a vault door, cold and silent.", "three rune plates lie dark..."),
       insc=("gold letters on the floor:", "'three runes wake the vault.'"))
-floor("vaults of kesh 2", 5, 52, 9, ("drake", "lich", "drake", "cultist"),
+floor("valhalla gate 2", 5, 52, 9, ("drake", "lich", "drake", "cultist"),
       {'r': ("drake", 2), 'l': ("lich", 2)}, down=True, secret_to_down=True, items=['K', 'I'],
       insc=("a whisper from the walls:", "'the way down hides in plain sight.'"))
-floor("vaults of kesh 3", 5, 53, 8, ("drake", "lich", "drake", "lich"),
-      {'r': ("drake", 2), 'z': ("kesh the wyrm", 1)}, protect='T', boss='z', boss_letters='z',
+floor("valhalla gate 3", 5, 53, 8, ("drake", "lich", "drake", "lich"),
+      {'r': ("drake", 2), 'z': ("nidhogg", 1)}, protect='T', boss='z', boss_letters='z',
       items=['I'], puzzle=P_KEY,
       door=("the wyrm's door: a great lock.", "the key lies on the floor above."),
-      insc=("bones of heroes past. a warning:", "'kesh wakes. kesh hungers.'"),
-      chest=(0, "the heart of kesh is yours!", "the realm is saved!", 255, 1))
+      insc=("bones of heroes past. a warning:", "'nidhogg gnaws. nidhogg hungers.'"),
+      chest=(0, "the gates of valhalla open!", "the heroes are home at last!", 255, 1))
 
-DUNGEONS = [  # name, entrance message (<=38), floors, required sigils mask
+DUNGEONS = [  # name, entrance message (<=38), floors, required runestones mask
     ("crypt of varn",   "the crypt of varn. danger 1. (e)nter?",   [0], 0),
     ("sunken halls",    "the sunken halls. danger 2. (e)nter?",    [1], 0),
     ("webwood caves",   "the webwood caves. danger 3. (e)nter?",   [2, 3], 0),
     ("frozen deep",     "the frozen deep. danger 4. (e)nter?",     [4, 5], 0),
     ("obsidian keep",   "the obsidian keep. danger 5. (e)nter?",   [6, 7], 0),
-    ("vaults of kesh",  "the vaults of kesh! danger 6. (e)nter?",  [8, 9, 10], 0x1f),
+    ("valhalla's gate", "valhalla's gate! danger 6. (e)nter?",  [8, 9, 10], 0x1f),
 ]
 
 # ------------------------------------------------------------------ towns
@@ -307,7 +307,7 @@ TOWNS = [
         ("GUARD", "guard: 'the arcanum sells old tomes.'", "'your wizard could use one.'"),
         ("FOLK2", "maud: 'the crypt door has a mouth.'", "'it opens for the dead king's name.'"),
         ("FOLK", "pip: 'are you real adventurers?'", "'my da says orcs smell awful!'"),
-        ("FOLK", "mayor brandt: 'five sigils seal'", "'the vaults of kesh. find them!'"),
+        ("FOLK", "mayor brandt: 'five runestones seal'", "'valhalla's gate. find them!'"),
         ("FOLK", "drunk: 'hic! levers... the sun...'", "'...always starts in the east! hic!'"),
       ],
       rumors=["'the bone king fears fire, they say.'", "'the sun rises in the east, friend.'",
@@ -340,11 +340,11 @@ TOWNS = [
         ("GUARD", "guard: 'ravenmoor, at world's edge.'", "'beyond lie the dark lands.'"),
         ("FOLK2", "sage elra: 'the first flame was'", "'called ashara. remember it.'"),
         ("FOLK", "miner: 'deep runes glow when stepped'", "'on. light them all, they say.'"),
-        ("FOLK", "pilgrim: 'five sigils seal the'", "'vaults. kesh the wyrm sleeps below.'"),
+        ("FOLK", "pilgrim: 'valhalla's gate lies far'", "'north. nidhogg guards it.'"),
         ("FOLK2", "old sailor: 'walls down there ain't'", "'always walls. mark me!'"),
       ],
       rumors=["'iron, bone, gold... or was it gold?'", "'a blessing makes you hardier.'",
               "'the death knight hits like a hammer.'", "'the frozen gate wants four runes.'",
-              "'drakes breathe fire. wear good mail.'", "'kesh the wyrm has slept for ages.'",
+              "'drakes breathe fire. wear good mail.'", "'nidhogg gnaws at the world tree.'",
               "'the storm tome is worth every coin.'", "'some walls are only illusions.'"]),
 ]
