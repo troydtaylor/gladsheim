@@ -15,9 +15,10 @@ class RomShadow(bytearray):
         return bytearray.__getitem__(self, i)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ref = C64(os.path.join(ROOT, "build", "proto.prg"))
+ED = sys.argv[1] if len(sys.argv) > 1 else ""        # "" or "_nomusic"
+ref = C64(os.path.join(ROOT, "build", f"proto{ED}.prg"))
 ref.run_until_idle()
-c = C64(os.path.join(ROOT, "build", "packed.prg"))
+c = C64(os.path.join(ROOT, "build", f"packed{ED}.prg"))
 c.sym = ref.sym                      # same program, so the same symbols
 shadow = RomShadow(c.mem)
 shadow[1] = 0x37                    # the machine starts with every ROM in

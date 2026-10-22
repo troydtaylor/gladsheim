@@ -25,8 +25,14 @@
 ;    $E000-$FF3F  hires bitmap (RAM under the KERNAL)
 ; =====================================================================
 !cpu 6502
+!ifndef MUSIC { MUSIC = 1 }        ; acme -DMUSIC=0 builds the edition without music
+!if MUSIC {
 !to "build/proto.prg", cbm
 !symbollist "build/proto.sym"
+} else {
+!to "build/proto_nomusic.prg", cbm
+!symbollist "build/proto_nomusic.sym"
+}
 
 ; ---------------------------------------------------------------- zero page
 mode    = $10       ; 0 overworld, 1 dungeon, 2 town
@@ -2068,8 +2074,12 @@ low_end
 !source "sheet.asm"
 !source "saveload.asm"
 !source "create.asm"
+!if MUSIC {
 !source "music.asm"
 !source "build/music.asm"
+} else {
+!source "nomusic.asm"
+}
 !source "build/gen.asm"
 !source "build/quests_hi.asm"
 

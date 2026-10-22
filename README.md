@@ -9,16 +9,22 @@ The world is **Gladsheim**, the realm of Norse myth where Valhalla stands. Four 
 the Einherjar Hall to win the five runestones that open Valhalla's Gate, where Nidhogg, the wyrm
 that gnaws at the World Tree, waits at the bottom.
 
-**[Download gladsheim.d64](https://github.com/troydtaylor/gladsheim/raw/main/dist/gladsheim.d64)**, the
-whole game on one disk image (or the single file:
-[gladsheim.prg](https://github.com/troydtaylor/gladsheim/raw/main/dist/gladsheim.prg)).
-In VICE: `x64sc -autostart gladsheim.d64`, or drag it onto the window.
+## Download
+
+| | Disk image | Single program file |
+|---|---|---|
+| **With music** | [gladsheim.d64](https://github.com/troydtaylor/gladsheim/raw/main/dist/gladsheim.d64) | [gladsheim.prg](https://github.com/troydtaylor/gladsheim/raw/main/dist/gladsheim.prg) |
+| **Without music** | [gladsheim-nomusic.d64](https://github.com/troydtaylor/gladsheim/raw/main/dist/gladsheim-nomusic.d64) | [gladsheim-nomusic.prg](https://github.com/troydtaylor/gladsheim/raw/main/dist/gladsheim-nomusic.prg) |
+
+In VICE: `x64sc -autostart gladsheim.d64`, or drag the file onto the window. The edition without music
+is otherwise identical and a little smaller (76 blocks instead of 81); saves work in both.
 
 ![Gladsheim in hires bitmap mode](docs/screenshots_bitmap.png)
 
 ## Run
 
-Prebuilt images are in `dist/` (`gladsheim.d64`, `gladsheim.prg`); `./build.sh` makes fresh ones in `build/`.
+Prebuilt images are in `dist/` (`gladsheim.d64`, `gladsheim.prg`, and `-nomusic` versions of both);
+`./build.sh` makes fresh ones in `build/`.
 
 - **VICE:** `x64sc -autostart dist/gladsheim.d64`
 - **Real hardware / SD2IEC / Ultimate:** `LOAD"GLADSHEIM",8` then `RUN`
