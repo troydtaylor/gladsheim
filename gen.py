@@ -861,7 +861,6 @@ byts("dg_need", (need for _, _, _, need in C.DUNGEONS))
 ptrs("dg_msg", [S(msg) for _, msg, _, _ in C.DUNGEONS])
 
 # levels
-ptrs("lvl_src", [f"lvl_data{i}" for i in range(len(C.FLOORS))])
 byts("lvl_save_hi", (0xB4 + i for i in range(len(C.FLOORS))))
 dg_of = {}
 for d, (_, _, fl, _) in enumerate(C.DUNGEONS):
@@ -969,11 +968,14 @@ A("dir_base !byte " + ",".join(str(dr * len(elements)) for dr in range(4)))
 A("fwd_dx !byte " + ",".join(f"${v & 0xFF:02x}" for v, _ in FWD))
 A("fwd_dy !byte " + ",".join(f"${v & 0xFF:02x}" for _, v in FWD))
 
-# level data (pristine)
+# level data (pristine): loaded straight into the floors' save slots at $B400, one page each
+FL = ["*= $b400"]
+assert 0xB4 + len(levels_bin) <= 0xBF, "too many floors for the save area"
 for i, b in enumerate(levels_bin):
-    A(f"lvl_data{i}")
+    FL.append(f"lvl_data{i}")
     for k in range(0, 256, 32):
-        A("  !byte " + ",".join(f"${v:02x}" for v in b[k:k + 32]))
+        FL.append("  !byte " + ",".join(f"${v:02x}" for v in b[k:k + 32]))
+open(os.path.join(OUT, "floors.asm"), "w").write("\n".join(FL) + "\n")
 
 # all strings
 for text, label in STRS.items():
@@ -1065,6 +1067,60 @@ open(os.path.join(OUT, "quests_hi.asm"), "w").write("\n".join(QH) + "\n")
 qtext = sum(len(t) + 1 for t in QSTR) + 1
 print(f"quests: {len(allnpc)} people, {len(pages)} pages, {len(lines)} lines, {len(acts)} actions, "
       f"text {qtext} bytes, {sum(len(l) for l in QH)} chars' worth spilled to high memory")
+
+# ---------------------------------------------------------------- music -> build/music.asm
+import music as MU
+NOTE = {'c': 0, 'c#': 1, 'db': 1, 'd': 2, 'd#': 3, 'eb': 3, 'e': 4, 'f': 5, 'f#': 6, 'gb': 6,
+        'g': 7, 'g#': 8, 'ab': 8, 'a': 9, 'a#': 10, 'bb': 10, 'b': 11}
+INS = list(MU.INSTRUMENTS)
+def note_num(tok):
+    name, octave = tok[:-1], int(tok[-1])
+    return 12 * octave + NOTE[name] + 1            # C-0 = 1 ... A-4 = 58
+def pattern_bytes(name, text):
+    out, dur, ticks = [], None, 0
+    for tok in text.split():
+        if tok.startswith('@'):
+            out.append(0xA0 + INS.index(tok[1:]))
+            continue
+        if ':' in tok:
+            tok, d = tok.split(':')
+            d = int(d)
+            assert 1 <= d <= 64, (name, tok)
+            if d != dur:
+                out.append(0x5F + d)
+                dur = d
+        assert dur, f"{name}: no length before {tok}"
+        n = 0 if tok == 'r' else note_num(tok)
+        assert 0 <= n <= 0x5F, (name, tok)
+        out.append(n)
+        ticks += dur
+    assert ticks == 16, f"music pattern {name} lasts {ticks} 16ths, not a bar of 16"
+    return out + [0xFF]
+ML = []
+pnames = list(MU.PATTERNS)
+for name in pnames:
+    ML.append(f"mp_{name} !byte " + ",".join(str(b) for b in pattern_bytes(name, MU.PATTERNS[name])))
+ML.append("mus_pat_lo !byte " + ",".join(f"<mp_{n}" for n in pnames))
+ML.append("mus_pat_hi !byte " + ",".join(f">mp_{n}" for n in pnames))
+assert len(pnames) < 255
+orders = []
+for t, tune in enumerate(MU.TUNES):
+    assert len(tune["voices"]) == 3
+    for v, plist in enumerate(tune["voices"]):
+        assert len(plist) == len(tune["voices"][0]), f"{tune['name']}: voices of different lengths"
+        ML.append(f"mo_{t}_{v} !byte " + ",".join(str(pnames.index(p)) for p in plist) + ",255")
+        orders.append(f"mo_{t}_{v}")
+ML.append("mus_ord_lo !byte " + ",".join(f"<{o}" for o in orders))
+ML.append("mus_ord_hi !byte " + ",".join(f">{o}" for o in orders))
+ML.append("mus_speed !byte " + ",".join(str(t["speed"]) for t in MU.TUNES))
+for k, field in enumerate(("wave", "ad", "sr", "pw", "fx")):
+    ML.append(f"ins_{field} !byte " + ",".join(str(MU.INSTRUMENTS[i][k]) for i in INS))
+freqs = [0] + [min(65535, round(440 * 2 ** ((n - 58) / 12) * 16777216 / 985248)) for n in range(1, 96)]
+ML.append("mus_flo !byte " + ",".join(str(f & 255) for f in freqs))
+ML.append("mus_fhi !byte " + ",".join(str(f >> 8) for f in freqs))
+open(os.path.join(OUT, "music.asm"), "w").write("\n".join(ML) + "\n")
+print(f"music: {len(MU.TUNES)} tunes, {len(pnames)} patterns, "
+      f"{sum(len(pattern_bytes(n, MU.PATTERNS[n])) for n in pnames)} pattern bytes")
 
 # previews
 try:

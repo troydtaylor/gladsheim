@@ -25,7 +25,8 @@ save_game
         beq +
         +msg m_saveow
         rts
-+       lda px
++       jsr music_pause         ; the disk and the music don't mix
+        lda px
         sta savepx
         lda py
         sta savepy
@@ -81,7 +82,8 @@ load_game
         +msg m_saveow
         sec
         rts
-+       +msg m_loading
++       jsr music_pause
+        +msg m_loading
         lda #save_len
         ldx #<save_name
         ldy #>save_name

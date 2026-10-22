@@ -361,7 +361,7 @@ h1  !scr "wasd/cursor  move" : !byte $ff
 h2  !scr "e   enter, use, climb" : !byte $ff
 h3  !scr "c   character sheet" : !byte $ff
 h4  !scr "h   paladin heals (1-4)" : !byte $ff
-h5  !scr "v/l save/load (wilds)" : !byte $ff
+h5  !scr "v/l save/load  m music" : !byte $ff
 h6  !scr "in dungeons" : !byte $ff
 h7  !scr "w   step forward" : !byte $ff
 h8  !scr "q/d turn left/right" : !byte $ff

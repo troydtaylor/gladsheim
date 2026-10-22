@@ -259,6 +259,9 @@ start
         sta $d021
         jsr $ff90           ; SETMSG 0: no KERNAL "searching / loading" text
         jsr video_init      ; hires bitmap mode, blank layers
+        jsr music_init
+        lda #0              ; the wilds tune over the story and the party
+        jsr music_start
         jsr sprites_init
         jsr new_game
         jsr draw_frame
@@ -276,6 +279,7 @@ start
         +msg m_welcome3
 
 main
+        jsr music_sync      ; the wilds tune above ground, the dungeon tune below
         jsr getkey
         ldx mode
         cpx #1
@@ -360,26 +364,7 @@ new_game
         sta seed
         lda #$3c
         sta seed+1
-        ldx #0              ; every floor starts from its pristine copy
-.lv     stx tmp
-        lda lvl_src_lo,x
-        sta src
-        lda lvl_src_hi,x
-        sta src+1
-        lda lvl_save_hi,x
-        sta dst+1
-        lda #0
-        sta dst
-        ldy #0
-.cp     lda (src),y
-        sta (dst),y
-        iny
-        bne .cp
-        ldx tmp
-        inx
-        cpx #NUM_LEVELS
-        bne .lv
-        rts
+        rts                 ; (the floors arrive pristine in their save slots at $B400)
 
 ; copy one 256-byte page: A = source page, X = destination page
 !zone copy_page
@@ -1047,6 +1032,9 @@ ow_key
 +       cmp #$4a            ; J  journal: the quest log
         bne +
         jmp quest_log
++       cmp #$4d            ; M  music off/on
+        bne +
+        jmp music_toggle
 +       cmp #$56            ; V  save game
         bne +
         jmp save_game
@@ -1591,6 +1579,9 @@ dg_key
 +       cmp #$4a            ; J  journal: the quest log
         bne +
         jmp quest_log
++       cmp #$4d            ; M  music off/on
+        bne +
+        jmp music_toggle
 +       rts
 .left   lda ddir
         sec
@@ -2077,6 +2068,8 @@ low_end
 !source "sheet.asm"
 !source "saveload.asm"
 !source "create.asm"
+!source "music.asm"
+!source "build/music.asm"
 !source "build/gen.asm"
 !source "build/quests_hi.asm"
 
@@ -2094,4 +2087,5 @@ code_end
         !binary "build/town0.bin"
         !binary "build/town1.bin"
 !source "build/quests.asm"           ; people and quests: tables at $5C00, text at $2C00
+!source "build/floors.asm"           ; the 11 floors as they start, in their save slots
 

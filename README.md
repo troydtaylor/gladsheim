@@ -23,7 +23,7 @@ Prebuilt images are in `dist/` (`gladsheim.d64`, `gladsheim.prg`); `./build.sh` 
 - **VICE:** `x64sc -autostart dist/gladsheim.d64`
 - **Real hardware / SD2IEC / Ultimate:** `LOAD"GLADSHEIM",8` then `RUN`
 
-The game is crunched with Exomizer: 76 blocks instead of 172, so it loads in well under half the
+The game is crunched with Exomizer: 81 blocks instead of 185, so it loads in well under half the
 time on a stock 1541; it unpacks itself in a few seconds.
 
 ## Saving
@@ -39,9 +39,9 @@ their names, gold, runestones, keys, quests and the state of every dungeon floor
 | W A S D / cursor keys — move | W — forward | A — attack | A–D — choose item |
 | E — enter dungeon or town | Q / D (or cursor keys) — turn, S — about face | P — parry (halve damage) | 1–4 — who gets it |
 | walk into people, signs, counters | E — stairs, levers | H — heal: then 1–4, or RETURN for the most hurt | X — leave |
-| C — character sheet, J — quest journal | C — sheet, J — quest journal | B — the wizard's flame bolt | |
+| C — character sheet, J — quest journal, M — music off/on | C — sheet, J — quest journal | B — the wizard's flame bolt | |
 | H — the paladin heals (1–4, RETURN = most hurt) | H — paladin heals | S — the bard's song (heals all) | |
-| V — save, L — load (overworld) | | | |
+| V — save, L — load (overworld) | M — music off/on | | |
 | | walk into doors | R — run (50%) | |
 
 ## People and side quests
@@ -62,6 +62,18 @@ a spell upgrade), written in `content.py`. **J** (journal) shows every quest you
 
 Mayor Brandt rewards the first and third runestones. Items can be found before anyone asks for them;
 take them back and they still count.
+
+## Music
+
+Two original three-voice SID tunes: a bright folk air in D major over a harp-like broken chord for
+the wilds and the towns ([listen](docs/music/gladsheim_wilds.mp3)), and a slow minor-key lament over
+a restless arpeggio, a pounding bass and a drum for the dungeons
+([listen](docs/music/gladsheim_dungeon.mp3)). The previews are rendered by `tools/musicwav.py`, which
+runs the game's own 6502 player and a simple software SID; a real C64 or VICE sounds richer.
+**M** turns the music off and on.
+
+The tunes are data in `music.py` (notes, lengths, instruments, per-voice pattern lists); `music.asm`
+is the player, on the KERNAL's 60 Hz interrupt, with pulse-width sweeps and vibrato.
 
 ## Making the party
 
@@ -160,8 +172,8 @@ and quest items show on the floor of the square you stand on and the two ahead.
 | `$5000–$57FF` | two 32×32 town maps |
 | `$5800–$58FF` | game state, quest stages included · `$5A00` current dungeon floor · `$5B00` row redraw flags |
 | `$5C00–$5FFF` | people's pages, quest tables, the opening story |
-| `$6000–$B3FF` | combat, towns, panel, sheet, save/load, generated tables, 11 pristine floors, text (RAM under BASIC from `$A000`) |
-| `$B400–$BFFF` | saved state of every floor + a copy of the game state = the `GLADSHEIM SAVE` file |
+| `$6000–$B3FF` | combat, towns, panel, sheet, save/load, music player and tunes, generated tables, text (RAM under BASIC from `$A000`) |
+| `$B400–$BFFF` | every floor (loaded pristine, then kept up to date) + a copy of the game state = the `GLADSHEIM SAVE` file |
 | `$C000–$C3FF` | colour matrix (VIC bank 3) and sprite pointers |
 | `$C400–$CDFF` | monster portraits |
 | `$E000–$FF3F` | the bitmap (RAM under the KERNAL ROM) |
@@ -177,6 +189,7 @@ mazes with puzzle pieces placed under those rules.
 - `main.asm` — engine core · `combat.asm` — combat, experience, levels · `town.asm` — towns and shops
 - `sheet.asm` — character sheet and ending · `text.asm` — engine messages · `saveload.asm` — disk saves
 - `render.asm` — the bitmap compositor · `panel.asm` — side panel and help · `quest.asm` — people, quests, story
+- `create.asm` — party creation · `music.asm` — the SID player · `music.py` — the tunes
 - `hires.py` — tile, terrain-variant and wall art
 - `content.py` — the game's content · `art.py` — monster portraits · `gen.py` — data generator
 - `tools/sim.py` — 6502 + VIC-II renderer · `tools/playtest.py` — full-game bot
