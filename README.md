@@ -18,14 +18,14 @@ Prebuilt images are in `dist/` (`gladsheim.d64`, `gladsheim.prg`); `./build.sh` 
 - **VICE:** `x64sc -autostart dist/gladsheim.d64`
 - **Real hardware / SD2IEC / Ultimate:** `LOAD"GLADSHEIM",8` then `RUN`
 
-The game is crunched with Exomizer: 72 blocks instead of 170, so it loads in well under half the
+The game is crunched with Exomizer: 76 blocks instead of 172, so it loads in well under half the
 time on a stock 1541; it unpacks itself in a few seconds.
 
 ## Saving
 
-Out on the overworld, **V** saves and **L** loads. The game writes one file, `GLADSHEIM SAVE`, to the
-disk in drive 8 (replacing the old one): the party, gold, runestones, keys and the state of every
-dungeon floor. Use a writable copy of the disk image. Write-protect and disk errors are reported.
+Out on the overworld, **V** saves and **L** loads; **L** at the start of a game loads too. The game
+writes one file, `GLADSHEIM SAVE`, to the disk in drive 8 (replacing the old one): the party and
+their names, gold, runestones, keys, quests and the state of every dungeon floor. Use a writable copy of the disk image. Write-protect and disk errors are reported.
 
 ## Controls
 
@@ -50,10 +50,10 @@ a spell upgrade), written in `content.py`. **J** (journal) shows every quest you
 |---|---|---|---|
 | Maud's locket | Maud, Thornbury | Crypt of Varn | 60 gold, 40 XP |
 | The orc chief's bounty | Captain Garn, Thornbury | Sunken Halls (slay the Orc Chief) | 150 gold |
-| Star iron | Brynja, the smith's daughter, Thornbury | Webwood Caves, lower floor | the Starblade for Torvik |
-| The horn of Heimdall | Ulf, the hermit in his hut in the wilds | Webwood Caves, upper floor | Sela's song grows stronger |
+| Star iron | Brynja, the smith's daughter, Thornbury | Webwood Caves, lower floor | the Starblade for your fighter |
+| The horn of Heimdall | Ulf, the hermit in his hut in the wilds | Webwood Caves, upper floor | the bard's song grows stronger |
 | Brok's fate | Hilde, Ravenmoor | Frozen Deep | 400 gold, 200 XP |
-| The flame codex | Sage Elra, Ravenmoor | Obsidian Keep, upper floor | Mira's flame bolt grows stronger |
+| The flame codex | Sage Elra, Ravenmoor | Obsidian Keep, upper floor | the wizard's flame bolt grows stronger |
 
 Mayor Brandt rewards the first and third runestones. Items can be found before anyone asks for them;
 take them back and they still count.
@@ -67,7 +67,7 @@ Names are kept in saved games.
 
 ## The party and levelling
 
-| | Class | Grows per level | Special |
+| Default name | Class | Grows per level | Special |
 |---|---|---|---|
 | Arden | Paladin | +4–6 HP, +2 SP, +1 might | Heal: 6–13 + 2×level + tome |
 | Mira | Wizard | +2–4 HP, +4 SP | Flame bolt: 6–13 + 2×level + tome, **ignores armour** |
@@ -100,6 +100,17 @@ lands) sells masterwork weapons and armour, higher tomes, and blessings (+max HP
 
 17 monster types drawn as 2×2 multicolour sprite portraits: skeletons, slimes, goblins, orcs,
 giant spiders, wraiths, trolls, dark knights, cultists, liches, drakes, and six bosses.
+
+## Maps (spoilers)
+
+Every dungeon floor, with the way to the key, the chest and the stairs marked, made by
+`tools/dmap.py` straight from `content.py`:
+[Crypt of Varn](docs/maps/1_crypt_of_varn.png) ·
+[Sunken Halls](docs/maps/2_sunken_halls.png) ·
+[Webwood Caves](docs/maps/3_webwood_caves.png) ·
+[Frozen Deep](docs/maps/4_frozen_deep.png) ·
+[Obsidian Keep](docs/maps/5_obsidian_keep.png) ·
+[Valhalla's Gate](docs/maps/6_valhallas_gate.png)
 
 ## Build and test
 
