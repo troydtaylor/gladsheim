@@ -12,11 +12,11 @@
 ;  quest stage: 0 unknown, 1 asked, 2 item found, 3 done
 ; =====================================================================
 qs      = VARS+$d0      ; 16: quest stages (part of the saved game)
-qpg     = VARS+$e0
-qcnt    = VARS+$e1
-qln     = VARS+$e2
-qn      = VARS+$e3
-qb      = VARS+$e4
+qpg     = TEMPS+8
+qcnt    = TEMPS+9
+qln     = TEMPS+10
+qn      = TEMPS+11
+qb      = TEMPS+12
 
 ; X = person
 !zone talk_script
@@ -195,10 +195,18 @@ intro
         inx
         cpx #INTRO_N
         bne .l
-        +msg m_presskey
-        jmp getkey
+        +msg m_newload
+-       jsr getkey
+        cmp #$4c            ; L: carry set
+        beq +
+        cmp #$4e            ; N or RETURN: carry clear
+        beq ++
+        cmp #$0d
+        bne -
+++      clc
++       rts
 
-; Q: every quest heard of, and where it stands
+; J: every quest heard of, and where it stands
 !zone quest_log
 quest_log
         jsr clear_view
@@ -257,6 +265,7 @@ quest_log
         jsr getkey
         jmp redraw_view
 
+m_newload !scr "(n)ew party or (l)oad saved game?" : !byte $ff
 s_qlog   !scr "quests" : !byte $ff
 s_qfound !scr "found! take it back." : !byte $ff
 s_qdone  !scr "done." : !byte $ff

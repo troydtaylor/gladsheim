@@ -1005,10 +1005,14 @@ for _, _, plist in allnpc:
             if a[0] == "setq":
                 assert a[1] < 16 and a[2] < 4
 assert len(pages) < 256 and len(lines) < 256 and len(acts) < 256
+QTAB = [0]                           # bytes of tables at $5C00
 def qbyts(label, vals):
+    vals = list(vals)
+    QTAB[0] += len(vals)
     QL.append(f"{label} !byte " + ",".join(str(v) for v in vals))
 def qptrs(label, labels):
     labels = list(labels)
+    QTAB[0] += 2 * len(labels)
     QL.append(f"{label}_lo !byte " + ",".join(f"<{l}" for l in labels))
     QL.append(f"{label}_hi !byte " + ",".join(f">{l}" for l in labels))
 QL.append("*= $5c00")
@@ -1034,25 +1038,33 @@ qptrs("intro", (QS(t, 25) if t else "qnone" for t in C.INTRO))
 QL.append(f"NUM_QUESTS = {len(C.QUESTS)}")
 qptrs("qname", (QS(n, 22) for n, _ in C.QUESTS))
 qptrs("qhint", (QS(h, 24) for _, h in C.QUESTS))
-QL.append("quests_tables_end")
-QL.append('!if quests_tables_end > $6000 { !error "quest tables overflow $5C00-$5FFF" }')
-QL.append("*= $2c00")
 QL.append("qnone !byte $ff")
-QH, used = [], 1                     # what doesn't fit at $2C00 goes with the high code (quests_hi.asm)
-for text, label in QSTR.items():
+QTAB[0] += 1
+# dialogue text fills the free gaps the program file already covers, then rides with the high code
+REGIONS = [(0x5c00 + QTAB[0], 0x6000), (0x2c00, 0x3800), (0x5910, 0x5a00), (0x5b20, 0x5c00)]
+fill = [[] for _ in REGIONS]
+used = [a for a, _ in REGIONS]
+QH = []
+for text, label in sorted(QSTR.items(), key=lambda kv: -len(kv[0])):
     line = f'{label} !scr "{text.lower()}" : !byte $ff'
-    if used + len(text) + 1 <= 0x3800 - 0x2c00:
-        QL.append(line)
-        used += len(text) + 1
+    for i, (a, b) in enumerate(REGIONS):
+        if used[i] + len(text) + 1 <= b:
+            fill[i].append(line)
+            used[i] += len(text) + 1
+            break
     else:
         QH.append(line)
-QL.append("quests_text_end")
-QL.append('!if quests_text_end > $3800 { !error "quest text overflows $2C00-$37FF" }')
+for i, (a, b) in enumerate(REGIONS):
+    if i:
+        QL.append(f"*= ${a:04x}")
+    QL += fill[i]
+    QL.append(f"qregion{i}_end")
+    QL.append(f'!if qregion{i}_end > ${b:04x} {{ !error "quest text region {i} overflows" }}')
 open(os.path.join(OUT, "quests.asm"), "w").write("\n".join(QL) + "\n")
 open(os.path.join(OUT, "quests_hi.asm"), "w").write("\n".join(QH) + "\n")
 qtext = sum(len(t) + 1 for t in QSTR) + 1
 print(f"quests: {len(allnpc)} people, {len(pages)} pages, {len(lines)} lines, {len(acts)} actions, "
-      f"text {qtext} bytes ({used} at $2C00)")
+      f"text {qtext} bytes, {sum(len(l) for l in QH)} chars' worth spilled to high memory")
 
 # previews
 try:

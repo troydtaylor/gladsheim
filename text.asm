@@ -18,10 +18,10 @@ s_n0     !scr "arden" : !byte $ff
 s_n1     !scr "mira" : !byte $ff
 s_n2     !scr "torvik" : !byte $ff
 s_n3     !scr "sela" : !byte $ff
-s_np0    !scr "arden " : !byte $ff
-s_np1    !scr "mira  " : !byte $ff
-s_np2    !scr "torvik" : !byte $ff
-s_np3    !scr "sela  " : !byte $ff
+s_np0    !scr "arden  " : !byte $ff       ; default names, padded to 7
+s_np1    !scr "mira   " : !byte $ff
+s_np2    !scr "torvik " : !byte $ff
+s_np3    !scr "sela   " : !byte $ff
 s_c0     !scr "paladin" : !byte $ff
 s_c1     !scr "wizard" : !byte $ff
 s_c2     !scr "fighter" : !byte $ff
@@ -29,10 +29,10 @@ s_c3     !scr "bard" : !byte $ff
 
 prompt_lo !byte <s_pr0, <s_pr1, <s_pr2, <s_pr3
 prompt_hi !byte >s_pr0, >s_pr1, >s_pr2, >s_pr3
-s_pr0    !scr "arden: (a)ttack (p)arry (h)eal (r)un" : !byte $ff
-s_pr1    !scr "mira: (a)ttack (p)arry (b)olt (r)un" : !byte $ff
-s_pr2    !scr "torvik: (a)ttack (p)arry (r)un" : !byte $ff
-s_pr3    !scr "sela: (a)ttack (p)arry (s)ing (r)un" : !byte $ff
+s_pr0    !scr ": (a)ttack (p)arry (h)eal (r)un" : !byte $ff
+s_pr1    !scr ": (a)ttack (p)arry (b)olt (r)un" : !byte $ff
+s_pr2    !scr ": (a)ttack (p)arry (r)un" : !byte $ff
+s_pr3    !scr ": (a)ttack (p)arry (s)ing (r)un" : !byte $ff
 
 s_attacks !scr " attacks!" : !byte $ff
 s_attack !scr " attack!" : !byte $ff
@@ -45,7 +45,7 @@ s_misses2 !scr " misses " : !byte $ff
 s_slain  !scr " is slain!" : !byte $ff
 s_falls  !scr " falls!" : !byte $ff
 s_heals  !scr " heals " : !byte $ff
-s_bolt   !scr "mira's flame bolt hits for " : !byte $ff
+s_bolt   !scr "'s flame bolt hits for " : !byte $ff
 s_victory !scr "victory! " : !byte $ff
 s_goldf  !scr " gold, " : !byte $ff
 s_xpf    !scr " xp each." : !byte $ff
@@ -79,8 +79,8 @@ m_blocked  !scr "blocked!" : !byte $ff
 m_nothing  !scr "there is nothing to enter here." : !byte $ff
 m_castle   !scr "the einherjar hall." : !byte $ff
 m_healed   !scr "its healers tend the living." : !byte $ff
-m_allwell  !scr "nobody needs healing." : !byte $ff
-m_cantheal !scr "arden can't cast a heal now." : !byte $ff
+m_allwell  !scr "no healing needed." : !byte $ff
+s_canthl   !scr " can't cast a heal now." : !byte $ff
 m_sealed1  !scr "a vast gate, sealed by five runes." : !byte $ff
 m_sealed2  !scr "you do not hold every runestone." : !byte $ff
 m_descend  !scr "you descend into the darkness..." : !byte $ff
@@ -113,7 +113,7 @@ m_prompt   !scr "> " : !byte $ff
 m_nosp     !scr "not enough spell points!" : !byte $ff
 m_fled     !scr "the party flees!" : !byte $ff
 m_noflee   !scr "no escape!" : !byte $ff
-m_song     !scr "sela sings. the party is soothed." : !byte $ff
+s_sings    !scr " sings. the party is soothed." : !byte $ff
 m_fallen   !scr "the party has fallen..." : !byte $ff
 m_awaken   !scr "you awaken in the einherjar hall..." : !byte $ff
 m_halfgold !scr "the healers took half your gold." : !byte $ff

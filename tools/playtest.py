@@ -42,9 +42,14 @@ class Bot:
         self.on_frame = on_frame or (lambda caption, hold: None)
         self.c.on_pause = lambda c: self.on_frame(None, 5)
         self.c.run_until_idle()
-        if "PRESS ANY KEY" in self.c.screen_text():      # the story so far
+        if "(N)EW PARTY" in self.c.screen_text():          # the story so far
             self.on_frame(None, 40)
-            self.c.key(' ')
+            self.c.key('N')
+        for _ in range(12):                              # keep the heroes' names, keep the first roll
+            if "CREATE YOUR PARTY" not in self.c.screen_text():
+                break
+            self.on_frame(None, 6)
+            self.c.key('\r')
         if seed is not None:
             self.c.mem[self.sym("seed")] = seed & 255
             self.c.mem[self.sym("seed") + 1] = (seed >> 8) | 1
@@ -111,6 +116,10 @@ class Bot:
             elif cur == 1 and hp[1] * 3 < mx[1]:
                 key, why = 'P', "parry"
             self.c.key(key)
+            if key == 'H':                               # heal the most wounded
+                who = min(low, key=lambda i: hp[i] / mx[i])
+                self.c.key(str(who + 1))
+                why = f"heal {NAMES[who].title()}"
             self.on_frame(f"{key}  {NAMES[cur]}: {why}", 2)
         else:
             raise AssertionError("combat never ended")
@@ -146,7 +155,9 @@ class Bot:
                 return
             if all(h == 0 or h * 4 >= m * 3 for h, m in zip(hp, mx)):
                 return
-            self.key('H', "H  Arden heals", 4)
+            self.c.key('H')
+            self.c.key('\r')                            # RETURN: the most wounded
+            self.on_frame("H  Arden heals", 4)
 
     def healthy(self):
         hp, mx = self.hp(), self.maxhp()

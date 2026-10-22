@@ -3,7 +3,7 @@
 ;
 ;   0  title               10  GOLD   12345
 ;   1  ----------           12  location / foes
-;   2  ARDEN   LV  1        13  X:30 Y:34  / foe hp
+;   2  ARDEN   L  1         13  X:30 Y:34  / foe hp
 ;   3  HP  28   SP  9       14  FACING WEST / foe hp
 ;   4-9 the other three     16-19 the main keys for the current mode
 ; =====================================================================
@@ -37,11 +37,11 @@ draw_party
         jsr print_at
         lda #HEADCOL
         sta textcol
-        lda #<s_lv
+        lda #<s_l1
         sta str
-        lda #>s_lv
+        lda #>s_l1
         sta str+1
-        ldx #PC+7
+        ldx #PC+8
         ldy n3row
         jsr print_at
         lda #TEXTCOL
@@ -320,6 +320,7 @@ kmore !scr "? more keys " : !byte $ff
 kbl !scr "            " : !byte $ff
 
 s_hp      !scr "hp" : !byte $ff
+s_l1      !scr "l" : !byte $ff
 s_sp      !scr "sp" : !byte $ff
 s_blank5  !scr "     " : !byte $ff
 s_blank12 !scr "            " : !byte $ff
@@ -359,7 +360,7 @@ h0  !scr "keys" : !byte $ff
 h1  !scr "wasd/cursor  move" : !byte $ff
 h2  !scr "e   enter, use, climb" : !byte $ff
 h3  !scr "c   character sheet" : !byte $ff
-h4  !scr "h   arden heals someone" : !byte $ff
+h4  !scr "h   paladin heals (1-4)" : !byte $ff
 h5  !scr "v/l save/load (wilds)" : !byte $ff
 h6  !scr "in dungeons" : !byte $ff
 h7  !scr "w   step forward" : !byte $ff

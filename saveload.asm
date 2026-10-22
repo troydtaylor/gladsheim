@@ -79,6 +79,7 @@ load_game
         lda mode
         beq +
         +msg m_saveow
+        sec
         rts
 +       +msg m_loading
         lda #save_len
@@ -103,6 +104,7 @@ load_game
         sta VARS,x
         inx
         bne .cp
+        jsr check_names         ; saves from before names were kept
         lda savepx
         sta px
         lda savepy
@@ -118,11 +120,14 @@ load_game
         jsr ow_status
         jsr draw_party
         +msg m_loaded
+        clc                     ; carry clear: loaded
         rts
 .bad    +msg m_badsave
+        sec
         rts
 .err    jsr drive_ok            ; clear the drive's error state
         +msg m_noload
+        sec
         rts
 
 ; read the drive's error channel: carry clear if it says "00" (or "01" files scratched)

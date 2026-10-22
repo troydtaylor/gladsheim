@@ -50,8 +50,17 @@ combat
         lda #3
         sta action,x
         jmp .nextc
-.prompt ldx cur
-        +ptrmsg prompt_lo, prompt_hi
+.prompt jsr mb_start         ; "name: (a)ttack ..."
+        ldx cur
+        jsr mb_name
+        ldx cur
+        lda prompt_lo,x
+        pha
+        lda prompt_hi,x
+        tax
+        pla
+        jsr mb_str
+        jsr mb_end
 .key    jsr getkey
         ldx cur
         cmp #$41            ; A
@@ -76,6 +85,9 @@ combat
         jmp .prompt
 +       lda #2
         sta action,x
+        cpx #0              ; Arden: heal whom?
+        bne .nextc
+        jsr pick_heal
 .nextc  ldx cur
         inx
         cpx #4
@@ -263,8 +275,12 @@ combat
         sta sp,x
         cpx #0
         bne +
-        jsr most_wounded    ; ARDEN: heal
-        jsr heal_target
+        ldx htarget         ; ARDEN: heal the chosen one, or the most wounded
+        bmi .mw
+        stx target
+        jmp .ht
+.mw     jsr most_wounded
+.ht     jsr heal_target
         jmp .nexta
 +       cpx #1
         beq .bolt
@@ -285,6 +301,8 @@ combat
         lda #255
 +       sta dmg
         jsr mb_start
+        ldx #1
+        jsr mb_name
         +mbs s_bolt
         lda dmg
         jsr mb_num
@@ -351,8 +369,11 @@ song
 +       dex
         bpl -
         jsr draw_party
-        +msg m_song
-        jmp pause
+        jsr mb_start
+        ldx #3
+        jsr mb_name
+        +mbs s_sings
+        jmp cmsg
 
 ; damage monster [target] by dmg; may end the fight
 !zone hurt_foe

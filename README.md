@@ -33,9 +33,9 @@ dungeon floor. Use a writable copy of the disk image. Write-protect and disk err
 |---|---|---|---|
 | W A S D / cursor keys — move | W — forward | A — attack | A–D — choose item |
 | E — enter dungeon or town | Q / D (or cursor keys) — turn, S — about face | P — parry (halve damage) | 1–4 — who gets it |
-| walk into people, signs, counters | E — stairs, levers | H — Arden heals | X — leave |
-| C — character sheet, J — quest journal | C — sheet, J — quest journal | B — Mira's flame bolt | |
-| H — Arden heals (outside combat) | H — Arden heals | S — Sela's song (heals all) | |
+| walk into people, signs, counters | E — stairs, levers | H — heal: then 1–4, or RETURN for the most hurt | X — leave |
+| C — character sheet, J — quest journal | C — sheet, J — quest journal | B — the wizard's flame bolt | |
+| H — the paladin heals (1–4, RETURN = most hurt) | H — paladin heals | S — the bard's song (heals all) | |
 | V — save, L — load (overworld) | | | |
 | | walk into doors | R — run (50%) | |
 
@@ -57,6 +57,13 @@ a spell upgrade), written in `content.py`. **J** (journal) shows every quest you
 
 Mayor Brandt rewards the first and third runestones. Items can be found before anyone asks for them;
 take them back and they still count.
+
+## Making the party
+
+A new game tells the story so far, then asks for a new party or a saved game. Each of the four
+heroes (paladin, wizard, fighter, bard) gets a name of up to seven letters (RETURN keeps the
+default) and a roll of hit points, spell points and might: **R** rolls again, RETURN keeps it.
+Names are kept in saved games.
 
 ## The party and levelling
 

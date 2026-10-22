@@ -135,6 +135,12 @@ pk      = VARS+$3f      ; panel key line index
 pkrow   = VARS+$4c
 rseed   = VARS+$4d      ; ow_draw: 5 * map row (terrain looks)
 inbuf   = VARS+$40      ; 12
+TEMPS   = $5900         ; scratch the save leaves out
+incol   = TEMPS+0       ; input_at: where, and how many letters at most
+inrow   = TEMPS+1
+inmax   = TEMPS+2
+htarget = TEMPS+3       ; whom Arden heals ($ff = the most wounded)
+crm     = TEMPS+4       ; party creation: which hero
 mbuf    = VARS+$50      ; 48-byte message builder
 wpn     = VARS+$80      ; 4: weapon value
 arm     = VARS+$84      ; 4: armour
@@ -258,16 +264,13 @@ start
         jsr draw_frame
         jsr draw_panel
         jsr draw_party
-        jsr intro
-        lda #START_X
-        sta px
-        lda #START_Y
-        sta py
-        lda #0
-        sta mode
-        jsr ow_colors
-        jsr ow_draw
-        jsr ow_status
+        jsr intro           ; carry set: load a saved game
+        bcc .new
+        jsr enter_world
+        jsr load_game
+        bcc main
+.new    jsr create_party
+        jsr enter_world
         +msg m_welcome1
         +msg m_welcome2
         +msg m_welcome3
@@ -281,6 +284,17 @@ main
         jmp main
 +       jsr dg_key
         jmp main
+
+enter_world
+        lda #START_X
+        sta px
+        lda #START_Y
+        sta py
+        lda #0
+        sta mode
+        jsr ow_colors
+        jsr ow_draw
+        jmp ow_status
 
 ; wait for a key; stir the raster position into the RNG (real hardware)
 getkey
@@ -326,6 +340,15 @@ new_game
         sta sigils
         sta keys
         sta won
+        ldx #3
+.nm     txa
+        pha
+        jsr default_name
+        pla
+        tax
+        dex
+        bpl .nm
+        lda #0
         ldx #15
 .ps     sta pstate,x
         sta qs,x
@@ -669,13 +692,20 @@ mb_u16
         bne .digit
         rts
 
-mb_name                     ; X = party member
+mb_name                     ; X = party member (without the padding)
         lda pname_lo,x
         pha
         lda pname_hi,x
         tax
         pla
-        jmp mb_str
+        jsr mb_str
+-       ldx mbi
+        lda mbuf-1,x
+        cmp #32
+        bne +
+        dec mbi
+        bne -
++       rts
 
 mb_mon                      ; current monster type, singular
         ldx mtype
@@ -1152,19 +1182,30 @@ camp_heal
         bcc .cant
         lda #0
         sta cur
-        jsr most_wounded
-        lda tmp2            ; any damage at all?
-        bne +
-        +msg m_allwell
+        jsr pick_heal
+        ldx htarget
+        bmi .auto
+        lda hp,x            ; that one: hurt at all?
+        cmp maxhp,x
+        beq .well
+        stx target
+        jmp .cast
+.auto   jsr most_wounded
+        lda tmp2            ; anyone hurt at all?
+        bne .cast
+.well   +msg m_allwell
         rts
-+       lda sp
+.cast   lda sp
         sec
         sbc #3
         sta sp
         jsr heal_target
         jmp draw_party
-.cant   +msg m_cantheal
-        rts
+.cant   jsr mb_start
+        ldx #0
+        jsr mb_name
+        +mbs s_canthl
+        jmp mb_end
 
 ; =====================================================================
 ;  DUNGEON
@@ -1887,13 +1928,21 @@ pull_lever
 !zone input_word
 input_word
         +msg m_prompt
+        lda #3
+        sta incol
+        lda #24
+        sta inrow
+        lda #10
+        sta inmax
+; read letters into inbuf (inlen of them) at (incol, inrow), at most inmax; RETURN ends
+input_at
         lda #0
         sta inlen
 .draw   lda inlen
         clc
-        adc #3
+        adc incol
         tax
-        ldy #24
+        ldy inrow
         jsr set_cursor
         ldy #0
         lda #'#'
@@ -1910,7 +1959,7 @@ input_word
         cmp #$5b
         bcs .key
         ldx inlen
-        cpx #10
+        cpx inmax
         bcs .key
         sec
         sbc #$40            ; PETSCII letter -> screen code
@@ -2006,8 +2055,8 @@ sp_gain !byte 2, 4, 0, 2
 mgt_gain !byte 1, 0, 1, 1
 pname_lo  !byte <s_n0, <s_n1, <s_n2, <s_n3
 pname_hi  !byte >s_n0, >s_n1, >s_n2, >s_n3
-pnamep_lo !byte <s_np0, <s_np1, <s_np2, <s_np3
-pnamep_hi !byte >s_np0, >s_np1, >s_np2, >s_np3
+pnamep_lo !byte <pnames, <(pnames+8), <(pnames+16), <(pnames+24)
+pnamep_hi !byte >pnames, >(pnames+8), >(pnames+16), >(pnames+24)
 pclass_lo !byte <s_c0, <s_c1, <s_c2, <s_c3
 pclass_hi !byte >s_c0, >s_c1, >s_c2, >s_c3
 
@@ -2027,6 +2076,7 @@ low_end
 !source "text.asm"
 !source "sheet.asm"
 !source "saveload.asm"
+!source "create.asm"
 !source "build/gen.asm"
 !source "build/quests_hi.asm"
 

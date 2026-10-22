@@ -33,7 +33,7 @@ char_sheet
         sta str
         lda pclass_hi,x
         sta str+1
-        ldx #VX+9
+        ldx #VX+10
         ldy n3row
         jsr print_at
         lda #<s_lv
