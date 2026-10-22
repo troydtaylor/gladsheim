@@ -261,12 +261,44 @@ quest_log
         cmp #3
         bne +
         +print VX+1,3,s_qempty,TEXTCOL
-+       +msg m_presskey
++       +print VX+1,15,s_rhead,HEADCOL  ; the runestones: lit if yours
+        ldx #0
+.rs     stx qcnt
+        lda rs_lo,x
+        sta str
+        lda rs_hi,x
+        sta str+1
+        lda bitmask,x
+        and sigils
+        beq +
+        lda #TITLECOL
+        !byte $2c           ; (skip the next lda)
++       lda #11
+        sta textcol
+        ldy rs_row,x
+        lda rs_col,x
+        tax
+        jsr print_at
+        ldx qcnt
+        inx
+        cpx #5
+        bne .rs
+        +msg m_presskey
         jsr getkey
         jmp redraw_view
 
 m_newload !scr "(n)ew party or (l)oad saved game?" : !byte $ff
 s_qlog   !scr "quests" : !byte $ff
+s_rhead  !scr "runestones (lit: yours)" : !byte $ff
+rs_lo    !byte <s_rs0, <s_rs1, <s_rs2, <s_rs3, <s_rs4
+rs_hi    !byte >s_rs0, >s_rs1, >s_rs2, >s_rs3, >s_rs4
+rs_col   !byte VX+2, VX+9, VX+17, VX+2, VX+9
+rs_row   !byte 16, 16, 16, 17, 17
+s_rs0    !scr "crypt" : !byte $ff
+s_rs1    !scr "sunken" : !byte $ff
+s_rs2    !scr "webwood" : !byte $ff
+s_rs3    !scr "frozen" : !byte $ff
+s_rs4    !scr "obsidian" : !byte $ff
 s_qfound !scr "found! take it back." : !byte $ff
 s_qdone  !scr "done." : !byte $ff
 s_qempty !scr "none yet. ask townsfolk." : !byte $ff

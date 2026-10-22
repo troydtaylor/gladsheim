@@ -70,7 +70,7 @@ s_sig1     !scr "runestones:   of 5" : !byte $ff
 
 m_welcome1 !scr "welcome to gladsheim, heroes!" : !byte $ff
 m_welcome2 !scr "a crypt lies near. thornbury, east." : !byte $ff
-m_welcome3 !scr "c sheet  v save  l load saved game" : !byte $ff
+m_welcome3 !scr "c sheet  j journal  v save  ? keys" : !byte $ff
 m_north    !scr "north" : !byte $ff
 m_south    !scr "south" : !byte $ff
 m_east     !scr "east" : !byte $ff
