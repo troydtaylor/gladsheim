@@ -9,6 +9,11 @@ The world is **Gladsheim**, the realm of Norse myth where Valhalla stands. Four 
 the Einherjar Hall to win the five runestones that open Valhalla's Gate, where Nidhogg, the wyrm
 that gnaws at the World Tree, waits at the bottom.
 
+**[Download gladsheim.d64](https://github.com/troydtaylor/gladsheim/raw/main/dist/gladsheim.d64)**, the
+whole game on one disk image (or the single file:
+[gladsheim.prg](https://github.com/troydtaylor/gladsheim/raw/main/dist/gladsheim.prg)).
+In VICE: `x64sc -autostart gladsheim.d64`, or drag it onto the window.
+
 ![Gladsheim in hires bitmap mode](docs/screenshots_bitmap.png)
 
 ## Run
