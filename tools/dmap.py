@@ -17,8 +17,8 @@ LAB = {'S': ("UP", (255, 255, 255), (70, 130, 200)), 'V': ("DOWN", (255, 255, 25
        'K': ("KEY", (0, 0, 0), (250, 210, 60)), 'T': ("CHEST", (0, 0, 0), (230, 150, 40)),
        'D': ("DOOR", (255, 255, 255), (120, 70, 30)), 'Q': ("QUEST", (0, 0, 0), (255, 255, 255)),
        'I': ("SIGN", (255, 255, 255), (110, 110, 60)), 'P': ("RUNE", (0, 0, 0), (200, 200, 90)),
-       '1': ("IRON", (255, 255, 255), (90, 90, 110)), '2': ("BONE", (0, 0, 0), (220, 220, 200)),
-       '3': ("GOLD", (0, 0, 0), (240, 200, 60)), 'X': ("FAKE", (255, 255, 255), (60, 52, 90))}
+       '1': ("PULL1", (0, 0, 0), (120, 220, 220)), '2': ("PULL2", (0, 0, 0), (120, 220, 220)),
+       '3': ("PULL3", (0, 0, 0), (120, 220, 220)), 'X': ("FAKE", (255, 255, 255), (60, 52, 90))}
 
 def bfs(g, a, b):
     prev, q = {a: None}, deque([a])
@@ -83,11 +83,12 @@ def floor_img(i, CS=34):
 if __name__ == "__main__":
     floors = [int(v) for v in sys.argv[2].split(',')]
     ims = [floor_img(i) for i in floors]
-    W = sum(i.width for i in ims) + 16 * (len(ims) - 1)
+    W = max(900, sum(i.width for i in ims) + 16 * (len(ims) - 1))
     H = max(i.height for i in ims)
     legend = ["Green: the way from the stairs you arrive on to the key, the chest and the stairs down.",
               "X = column, Y = row, as in the side panel. North is up.  Red squares are guardians (bright red: the boss).",
-              "QUEST = a side-quest item.  SIGN = an inscription.  RUNE = a rune plate.  FAKE = an illusory wall: walk through."]
+              "QUEST = a side-quest item.  SIGN = an inscription.  RUNE = a rune plate (step on each).  FAKE = an illusory wall: walk through.",
+              "PULL1-3 = levers: stand on each and press E, in that order."]
     out = Image.new('RGB', (W, H + 22 * len(legend) + 14), (24, 22, 30))
     x = 0
     for i in ims:
