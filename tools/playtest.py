@@ -160,7 +160,7 @@ class Bot:
     def face(self, want):
         turn = (want - self.dir) & 3
         if turn == 1: self.key('D', "D  turn right")
-        elif turn == 3: self.key('A', "A  turn left")
+        elif turn == 3: self.key('Q', "Q  turn left")
         elif turn == 2: self.key('S', "S  turn around")
 
     def dpath(self, goal, through_guards=True):

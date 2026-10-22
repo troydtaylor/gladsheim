@@ -307,7 +307,7 @@ k02 !scr "c sheet     " : !byte $ff
 k11 !scr "walk into   " : !byte $ff
 k12 !scr "folk, shops " : !byte $ff
 k20 !scr "w forward   " : !byte $ff
-k21 !scr "a/d turn    " : !byte $ff
+k21 !scr "q/d turn    " : !byte $ff
 k22 !scr "s back e use" : !byte $ff
 k30 !scr "a attack    " : !byte $ff
 k31 !scr "p parry     " : !byte $ff
@@ -363,7 +363,7 @@ h4  !scr "h   arden heals someone" : !byte $ff
 h5  !scr "v/l save/load (wilds)" : !byte $ff
 h6  !scr "in dungeons" : !byte $ff
 h7  !scr "w   step forward" : !byte $ff
-h8  !scr "a/d turn left/right" : !byte $ff
+h8  !scr "q/d turn left/right" : !byte $ff
 h9  !scr "s   turn around" : !byte $ff
 h10 !scr "in combat, each hero" : !byte $ff
 h11 !scr "a attack   p parry" : !byte $ff
@@ -372,4 +372,4 @@ h13 !scr "r   try to run" : !byte $ff
 h14 !scr "in towns" : !byte $ff
 h15 !scr "walk into folk to talk," : !byte $ff
 h16 !scr "into counters to shop" : !byte $ff
-h17 !scr "q   quest log" : !byte $ff
+h17 !scr "j   journal (quests)" : !byte $ff

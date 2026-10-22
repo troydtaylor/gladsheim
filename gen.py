@@ -778,6 +778,21 @@ for (bits, fg, bg), code in edge_glyphs.items():
     put_glyph(code, ["".join('#' if b & (0x80 >> i) else '.' for i in range(8)) for b in bits], fg, bg)
 assert D_CEIL == 128 and D_DOORTOP == 143
 
+# things on the dungeon floor: 4 glyphs each (near left/right, far left/right) after the edge glyphs
+ITEM_BASE = GEN_BASE + len(edge_glyphs)
+item_of = [255] * 16
+def shrink(rows):                             # 16x8 -> 8x4 (OR of 2x2), centred in 16x8
+    small = ["".join('#' if '#' in rows[y][x:x + 2] + rows[y + 1][x:x + 2] else '.'
+                     for x in range(0, 16, 2)) for y in range(0, 8, 2)]
+    return ["." * 16] * 3 + ["...." + r + "...." for r in small] + ["." * 16]
+for i, (name, (cells, fg, rows)) in enumerate(hires.FLOOR_ITEMS.items()):
+    for c in cells:
+        item_of[c] = i
+    for k, pic in enumerate((rows, shrink(rows))):
+        for half in range(2):
+            put_glyph(ITEM_BASE + i * 4 + k * 2 + half, [r[half * 8:half * 8 + 8] for r in pic], fg, hires.FLOORC)
+assert ITEM_BASE + 4 * len(hires.FLOOR_ITEMS) <= 255, "out of glyph codes for floor items"
+
 for ch, rows in FONT.items():                # thin 5x7 letters, 1-pixel margin
     rows8 = ["." + r + ".." for r in rows] + ["........"]
     put_glyph(screencode(ch), rows8, 1, 0)
@@ -827,6 +842,8 @@ A(f"CASTLE_X = {castle[0]}\nCASTLE_Y = {castle[1]}")
 A("tile_char  !byte " + ",".join(str(tile_base(t)) for t in range(len(TILES))))
 A("gcol !byte " + ",".join(str(v) for v in gcol))
 A("tvar !byte " + ",".join(str(v) for v in tvar))
+A(f"ITEM_BASE = {ITEM_BASE}")
+A("item_of !byte " + ",".join(str(v) for v in item_of))
 A("vtab !byte " + ",".join(str(v) for v in vtab))
 A("rnd64 !byte " + ",".join(str(v) for v in rnd64))
 A("; TILE NAMES " + ",".join(n for n, _, _, _ in TILES))

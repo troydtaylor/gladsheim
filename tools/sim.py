@@ -28,6 +28,7 @@ class C64:
         self.mem[0xFFE4:0xFFE4 + len(stub)] = bytes(stub)
         self.mem[0xD011] = 0x9B          # raster bit 8 set -> wait_vb falls through
         self.mem[0xD016] = 0xC8
+        self.mem[0xCB] = 0x40                  # KERNAL: no key held down
         self.mem[0xDD00] = 0x97                # VIC bank 0 until the game changes it
         entry = 0x080D
         if load == 0x0801:                    # follow the BASIC stub's SYS

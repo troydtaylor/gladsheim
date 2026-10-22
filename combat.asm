@@ -480,6 +480,7 @@ combat_end
         ldx csp
         txs
         jsr hide_monster
+        jsr flush_keys      ; no attack key left over to walk or turn with
         lda #0
         sta incombat
         lda mode

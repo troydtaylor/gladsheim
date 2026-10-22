@@ -32,9 +32,9 @@ dungeon floor. Use a writable copy of the disk image. Write-protect and disk err
 | Overworld / town | Dungeon | Combat (each member) | Shop |
 |---|---|---|---|
 | W A S D / cursor keys — move | W — forward | A — attack | A–D — choose item |
-| E — enter dungeon or town | A / D — turn, S — about face | P — parry (halve damage) | 1–4 — who gets it |
+| E — enter dungeon or town | Q / D (or cursor keys) — turn, S — about face | P — parry (halve damage) | 1–4 — who gets it |
 | walk into people, signs, counters | E — stairs, levers | H — Arden heals | X — leave |
-| C — character sheet, Q — quest log | C — sheet, Q — quest log | B — Mira's flame bolt | |
+| C — character sheet, J — quest journal | C — sheet, J — quest journal | B — Mira's flame bolt | |
 | H — Arden heals (outside combat) | H — Arden heals | S — Sela's song (heals all) | |
 | V — save, L — load (overworld) | | | |
 | | walk into doors | R — run (50%) | |
@@ -44,7 +44,7 @@ dungeon floor. Use a writable copy of the disk image. Write-protect and disk err
 Townsfolk remember what you have done: what they say changes as quests move on and as runestones are
 won. Each person's lines are a short list of pages with conditions (a quest's stage, the number of
 runestones, one runestone in particular) and actions (set a quest's stage, gold, experience, a weapon,
-a spell upgrade), written in `content.py`. **Q** shows every quest you have heard of and where it stands.
+a spell upgrade), written in `content.py`. **J** (journal) shows every quest you have heard of and where it stands.
 
 | Quest | Given by | Where | Reward |
 |---|---|---|---|
@@ -123,7 +123,8 @@ time the game waits for a key:
 The overworld and towns show 26×18 tiles of 8×8 pixels; in towns the view stops at the walls so the
 whole town fits. Grass, water, forest, mountains, snow, ash, dead wood and roads each have two to four
 looks, picked per square from a fixed pseudo-random pattern, so the land doesn't tile. The 3D dungeon
-view fills the whole 26×18 window with true one-pixel diagonals.
+view fills the whole 26×18 window with true one-pixel diagonals. Stairs, chests, keys, levers, rune plates
+and quest items show on the floor of the square you stand on and the two ahead.
 
 | Range | Contents |
 |---|---|

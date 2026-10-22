@@ -99,7 +99,8 @@ m_lever3   !scr "a gold lever. (e) to pull it." : !byte $ff
 m_ambush   !scr "something moves in the dark!" : !byte $ff
 m_noexit   !scr "nothing to use here." : !byte $ff
 m_guard    !scr "guardians bar the way!" : !byte $ff
-m_key      !scr "you find an old iron key!" : !byte $ff
+m_key      !scr "you picked up an old iron key!" : !byte $ff
+m_openchest !scr "you open the chest..." : !byte $ff
 m_rune     !scr "a rune flares with light!" : !byte $ff
 m_rumble   !scr "a distant door grinds open!" : !byte $ff
 m_keyturns !scr "the key turns. the door opens!" : !byte $ff

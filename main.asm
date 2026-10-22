@@ -1014,7 +1014,7 @@ ow_key
 +       cmp #$3f            ; ?  all the keys
         bne +
         jmp help_screen
-+       cmp #$51            ; Q  quest log
++       cmp #$4a            ; J  journal: the quest log
         bne +
         jmp quest_log
 +       cmp #$56            ; V  save game
@@ -1363,7 +1363,7 @@ clear_here
         jsr here_index
         lda #C_FLOOR
         sta DMAP,x
-        rts
+        jmp dg_render       ; whatever lay here is gone from the floor
 
 ; ---------------------------------------------------------------------
 ;  3D view: clear buffer to ceiling/floor, then paint wall pieces
@@ -1436,8 +1436,60 @@ dg_render
         lda ecur
         cmp #NUM_ELEM
         bne .e
+        ; fall through: what lies on the floor
 
-        rts
+; things on the floor straight ahead (here, 1 and 2 steps), drawn on the floor squares
+!zone dg_items
+dg_items
+        lda dpx
+        sta cx
+        lda dpy
+        sta cy
+        lda #0
+        sta ecur            ; distance
+.d      jsr dg_cell
+        ldx ecur
+        beq .here           ; the square we stand on is always in sight
+        cmp #C_WALL
+        beq .done
+        cmp #C_SECRET
+        beq .done
+        cmp #C_DOOR
+        beq .done
+.here   cmp #16             ; guardians ($80+) can't be seen
+        bcs .next
+        tay
+        lda item_of,y
+        bmi .next
+        asl                 ; glyph = ITEM_BASE + item * 4 (+2 far away)
+        asl
+        cpx #2
+        bne +
+        ora #2
++       clc
+        adc #ITEM_BASE
+        ldy item_off,x
+        sta VSCR+512,y
+        clc
+        adc #1
+        sta VSCR+513,y
+.next   ldx ddir
+        lda cx
+        clc
+        adc fwd_dx,x
+        sta cx
+        lda cy
+        clc
+        adc fwd_dy,x
+        sta cy
+        inc ecur
+        lda ecur
+        cmp #3
+        bne .d
+.done   rts
+
+; graphics-layer offsets (from VSCR+512) of the two middle floor cells, 0/1/2 steps ahead
+item_off !byte (VIEW3D_Y+16)*40+VIEW3D_X+12-512, (VIEW3D_Y+14)*40+VIEW3D_X+12-512, (VIEW3D_Y+12)*40+VIEW3D_X+12-512
 
 ; run list at (dl): lo, hi, length, glyph ... terminated by hi = 0
 !zone drawlist
@@ -1471,7 +1523,7 @@ dg_key
         beq .fwd
         cmp #$91
         beq .fwd
-        cmp #$41            ; A
+        cmp #$51            ; Q  (not A: that's attack in combat)
         beq .left
         cmp #$9d
         beq .left
@@ -1495,7 +1547,7 @@ dg_key
 +       cmp #$3f            ; ?
         bne +
         jmp help_screen
-+       cmp #$51            ; Q  quest log
++       cmp #$4a            ; J  journal: the quest log
         bne +
         jmp quest_log
 +       rts
@@ -1667,6 +1719,7 @@ guardian
 !zone open_chest
 open_chest
         jsr clear_here
+        +msg m_openchest
         ldx level
         lda lvl_cgold_lo,x
         clc
@@ -1716,6 +1769,7 @@ light_plate
         jsr here_index
         lda #C_LIT
         sta DMAP,x
+        jsr dg_render       ; the plate glows
         +msg m_rune
         ldx #0              ; any dark plates left?
 .l      lda DMAP,x

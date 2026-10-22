@@ -283,7 +283,7 @@ LOCKET, BOUNTY, STAR, HORN, BROK, CODEX, MAYOR = range(7)
 QUESTS = [("maud's locket", "crypt of varn. for maud"), ("the orc chief's bounty", "sunken halls. for garn"),
           ("star iron", "webwood caves. brynja"), ("the horn of heimdall", "webwood caves. for ulf"),
           ("brok's fate", "frozen deep. for hilde"), ("the flame codex", "obsidian keep. for elra")]
-                                                               # the quest log (q key)
+                                                               # the quest log (j key)
 def Q(q, v): return ("q", q, v)              # quest q is at stage v
 def RUNES(n): return ("runes", n, 0)         # at least n runestones
 def SIGIL(b): return ("sigil", 1 << b, 0)    # runestone b taken
@@ -312,11 +312,11 @@ HERMIT = npc("FOLK",                                   # quest 3: the horn of he
 
 # quest items lying in the dungeons: floor -> (quest, two lines)
 QITEMS = {
-    0: (LOCKET, "a silver locket lies among the bones.", "it must be maud's husband's!"),
-    2: (HORN, "a great horn, carved with old runes!", "the hermit's horn of heimdall."),
-    3: (STAR, "a lump of star iron, still warm!", "brynja's father will want this."),
-    4: (BROK, "a frozen miner, clutching a journal.", "it's brok. hilde must be told."),
-    6: (CODEX, "a book bound in living fire: the", "flame codex! sage elra must see it."),
+    0: (LOCKET, "you picked up a silver locket!", "it must be maud's husband's."),
+    2: (HORN, "you picked up a great carved horn!", "the hermit's horn of heimdall."),
+    3: (STAR, "you picked up a lump of star iron!", "brynja's father will want this."),
+    4: (BROK, "a frozen miner lies here: brok.", "you picked up his journal for hilde."),
+    6: (CODEX, "you picked up the flame codex!", "sage elra must see this book."),
 }
 
 # shown when a new game starts (lines of <=25 characters)

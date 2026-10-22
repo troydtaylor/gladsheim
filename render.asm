@@ -91,6 +91,15 @@ mark_all
         bpl -
         rts
 
+; wait until no key is held, then empty the keyboard buffer
+flush_keys
+-       lda $cb             ; KERNAL: key down now ($40 = none)
+        cmp #$40
+        bne -
+        lda #0
+        sta $c6             ; KERNAL: keys waiting in the buffer
+        rts
+
 ; --------------------------------------------------------------------- present
 !zone present
 present
