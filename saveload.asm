@@ -23,13 +23,19 @@ DEVICE  = 8
 save_game
         lda mode
         beq +
+        cmp #2                  ; in town too: the save keeps the town's square on the map
+        beq +
         +msg m_saveow
         rts
 +       jsr music_pause         ; the disk and the music don't mix
         lda px
-        sta savepx
-        lda py
-        sta savepy
+        ldx py
+        ldy mode
+        beq +
+        lda owx
+        ldx owy
++       sta savepx
+        stx savepy
         lda #'g'
         sta savemagic
         lda #'4'
@@ -79,6 +85,8 @@ save_game
 load_game
         lda mode
         beq +
+        cmp #2
+        beq +
         +msg m_saveow
         sec
         rts
@@ -107,6 +115,7 @@ load_game
         inx
         bne .cp
         jsr check_names         ; saves from before names were kept
+        jsr music_apply         ; and the music on or off, as it was saved
         lda savepx
         sta px
         lda savepy
@@ -177,7 +186,7 @@ scratch_len = * - scratch_name
 save_name    !pet "gladsheim save"
 save_len = * - save_name
 
-m_saveow   !scr "save and load out in the wilds." : !byte $ff
+m_saveow   !scr "save and load in the wilds or towns." : !byte $ff
 m_saving   !scr "saving to disk..." : !byte $ff
 m_saved    !scr "game saved." : !byte $ff
 m_saveerr  !scr "save failed! check the disk." : !byte $ff

@@ -34,9 +34,10 @@ time on a stock 1541; it unpacks itself in a few seconds.
 
 ## Saving
 
-Out on the overworld, **V** saves and **L** loads; **L** at the start of a game loads too. The game
-writes one file, `GLADSHEIM SAVE`, to the disk in drive 8 (replacing the old one): the party and
-their names, gold, runestones, keys, quests and the state of every dungeon floor. Use a writable copy of the disk image. Write-protect and disk errors are reported.
+**V** saves and **L** loads, out on the world map or in a town (not in dungeons); **L** at the title
+prompt loads too. A game saved in a town carries on outside its gate. The game writes one file,
+`GLADSHEIM SAVE`, to the disk in drive 8 (replacing the old one): the party and their names, gold,
+runestones, keys, quests, whether the music is on, and the state of every dungeon floor. Use a writable copy of the disk image. Write-protect and disk errors are reported.
 
 ## Controls
 
@@ -47,7 +48,7 @@ their names, gold, runestones, keys, quests and the state of every dungeon floor
 | walk into people, signs, counters | E — stairs, levers | H — heal: then 1–4, or RETURN for the most hurt | X — leave |
 | C — character sheet, J — quest journal, M — music off/on | C — sheet, J — quest journal | B — the wizard's flame bolt | |
 | H — the paladin heals (1–4, RETURN = most hurt) | H — paladin heals | S — the bard's song (heals all) | |
-| V — save, L — load (overworld) | M — music off/on | | |
+| V — save, L — load (map or town) | M — music off/on | | |
 | | walk into doors | R — run (50%) | |
 
 ## People and side quests
@@ -76,7 +77,7 @@ the wilds and the towns ([listen](docs/music/gladsheim_wilds.mp3)), and a slow m
 a restless arpeggio, a pounding bass and a drum for the dungeons
 ([listen](docs/music/gladsheim_dungeon.mp3)). The previews are rendered by `tools/musicwav.py`, which
 runs the game's own 6502 player and a simple software SID; a real C64 or VICE sounds richer.
-**M** turns the music off and on.
+**M** turns the music off and on, from the title prompt onwards, and saved games remember it.
 
 The tunes are data in `music.py` (notes, lengths, instruments, per-voice pattern lists); `music.asm`
 is the player, on the KERNAL's 60 Hz interrupt, with pulse-width sweeps and vibrato.

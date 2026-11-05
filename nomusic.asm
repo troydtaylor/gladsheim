@@ -6,6 +6,7 @@ music_init
 music_start
 music_sync
 music_pause
+music_apply
 music_stop
         rts
 music_toggle

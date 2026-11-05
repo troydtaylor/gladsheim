@@ -197,7 +197,11 @@ intro
         bne .l
         +msg m_newload
 -       jsr getkey
-        cmp #$4c            ; L: carry set
+        cmp #$4d            ; M: music off/on, right away
+        bne .nm
+        jsr music_toggle
+        jmp -
+.nm     cmp #$4c            ; L: carry set
         beq +
         cmp #$4e            ; N or RETURN: carry clear
         beq ++
@@ -287,7 +291,7 @@ quest_log
         jsr getkey
         jmp redraw_view
 
-m_newload !scr "(n)ew party or (l)oad saved game?" : !byte $ff
+m_newload !scr "(n)ew party, (l)oad game, m: music" : !byte $ff
 s_qlog   !scr "quests" : !byte $ff
 s_rhead  !scr "runestones (lit: yours)" : !byte $ff
 rs_lo    !byte <s_rs0, <s_rs1, <s_rs2, <s_rs3, <s_rs4

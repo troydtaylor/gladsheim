@@ -175,6 +175,7 @@ ggain   = VARS+$c2      ; 16-bit
 savepx  = VARS+$c4      ; overworld position, kept in the save
 savepy  = VARS+$c5
 savemagic = VARS+$c6    ; 2 bytes: 'K','4'
+musopt  = VARS+$c8      ; 1: the player turned the music off (kept in saves)
 
 GETIN   = $ffe4
 SPRITES = $2000        ; portraits as loaded; copied to SPRDST in bank 3

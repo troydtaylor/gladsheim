@@ -33,6 +33,18 @@ music_stop
         bpl -
         rts
 
+; after loading a game: music on or off as it was saved
+music_apply
+        lda musopt
+        and #1
+        eor #1
+        sta mus_enabled
+        bne +
+        jsr music_stop
++       lda #$ff
+        sta mus_tune
+        rts
+
 ; before disk work: silence; the main loop starts the music again afterwards
 music_pause
         jsr music_stop
@@ -64,6 +76,7 @@ music_sync
 ; M: music off / on
 music_toggle
         lda mus_enabled
+        sta musopt          ; kept in saved games (1 = off)
         eor #1
         sta mus_enabled
         beq .off
