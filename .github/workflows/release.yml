@@ -1,0 +1,25 @@
+# Pushing a version tag (v1.0, v1.1, ...) publishes a GitHub release with the game files
+# from dist/ attached, so GitHub counts their downloads.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/gladsheim.d64 dist/gladsheim.prg \
+            dist/gladsheim-nomusic.d64 dist/gladsheim-nomusic.prg \
+            --title "Gladsheim $GITHUB_REF_NAME" \
+            --notes-file docs/release-notes.md
