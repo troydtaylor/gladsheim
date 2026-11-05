@@ -13,8 +13,8 @@ that gnaws at the World Tree, waits at the bottom.
 
 | | Disk image | Single program file |
 |---|---|---|
-| **With music** | [gladsheim.d64](https://github.com/troydtaylor/gladsheim/raw/main/dist/gladsheim.d64) | [gladsheim.prg](https://github.com/troydtaylor/gladsheim/raw/main/dist/gladsheim.prg) |
-| **Without music** | [gladsheim-nomusic.d64](https://github.com/troydtaylor/gladsheim/raw/main/dist/gladsheim-nomusic.d64) | [gladsheim-nomusic.prg](https://github.com/troydtaylor/gladsheim/raw/main/dist/gladsheim-nomusic.prg) |
+| **With music** | [gladsheim.d64](https://github.com/troydtaylor/gladsheim/releases/latest/download/gladsheim.d64) | [gladsheim.prg](https://github.com/troydtaylor/gladsheim/releases/latest/download/gladsheim.prg) |
+| **Without music** | [gladsheim-nomusic.d64](https://github.com/troydtaylor/gladsheim/releases/latest/download/gladsheim-nomusic.d64) | [gladsheim-nomusic.prg](https://github.com/troydtaylor/gladsheim/releases/latest/download/gladsheim-nomusic.prg) |
 
 In VICE: `x64sc -autostart gladsheim.d64`, or drag the file onto the window. The edition without music
 is otherwise identical and a little smaller (76 blocks instead of 81); saves work in both.
