@@ -14,10 +14,6 @@ s_e      !scr "east " : !byte $ff
 s_s      !scr "south" : !byte $ff
 s_w      !scr "west " : !byte $ff
 
-s_n0     !scr "arden" : !byte $ff
-s_n1     !scr "mira" : !byte $ff
-s_n2     !scr "torvik" : !byte $ff
-s_n3     !scr "sela" : !byte $ff
 s_np0    !scr "arden  " : !byte $ff       ; default names, padded to 7
 s_np1    !scr "mira   " : !byte $ff
 s_np2    !scr "torvik " : !byte $ff

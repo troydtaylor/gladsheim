@@ -2051,8 +2051,8 @@ p_cost  !byte 3, 3, 0, 2
 hp_gain !byte 4, 2, 5, 3              ; per level (+0..2 random)
 sp_gain !byte 2, 4, 0, 2
 mgt_gain !byte 1, 0, 1, 1
-pname_lo  !byte <s_n0, <s_n1, <s_n2, <s_n3
-pname_hi  !byte >s_n0, >s_n1, >s_n2, >s_n3
+pname_lo  !byte <pnames, <(pnames+8), <(pnames+16), <(pnames+24)    ; the names the player chose
+pname_hi  !byte >pnames, >(pnames+8), >(pnames+16), >(pnames+24)
 pnamep_lo !byte <pnames, <(pnames+8), <(pnames+16), <(pnames+24)
 pnamep_hi !byte >pnames, >(pnames+8), >(pnames+16), >(pnames+24)
 pclass_lo !byte <s_c0, <s_c1, <s_c2, <s_c3
